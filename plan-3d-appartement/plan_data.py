@@ -30,7 +30,7 @@ ROOMS = [
  dict(id="sde", name="SALLE D'EAU", full="Salle d'eau", floor="carrelage", ang=-23.4,
       label=(3.82,3.92), poly=["Dw","D","Se","S"]),
 ]
-EXTRA_LABELS = [("CUISINE",(8.70,3.35)), ("REPAS",(7.89,1.67)), ("ENTRÉE",(4.95,3.30))]
+EXTRA_LABELS = [("CUISINE",(8.70,3.35)), ("REPAS",(7.89,1.67)), ("ENTRÉE",(5.15,3.42))]
 
 EXT_T, INT_T, WH = 0.22, 0.09, 1.30
 
@@ -45,7 +45,7 @@ WALLS = [
  dict(a="B1",b="P1", t=EXT_T, ext=1, op=[]),
  dict(a="P1",b="P2", t=EXT_T, ext=1, op=[]),
  dict(a="P2",b="P3", t=EXT_T, ext=1, keep=1,                       # porte d'entrée : jamais masquée
-      op=[dict(t0=0.06,t1=0.92,kind="door",swing=1,main=1)]),
+      op=[dict(t0=0.06,t1=0.92,kind="door",swing=-1,side=-1,main=1)]),
  dict(a="P3",b="B2", t=EXT_T, ext=1, op=[]),
  dict(a="B2",b="S",  t=EXT_T, ext=1, op=[dict(t0=1.63,t1=2.25,kind="win",sill=1.05)]),
  dict(a="S", b="W",  t=EXT_T, ext=1, op=[]),
@@ -54,7 +54,7 @@ WALLS = [
  dict(a="A", b="D",  t=INT_T, op=[dict(t0=2.77,t1=3.63,kind="door",swing=-1)]),
  dict(a="Dw",b="D",  t=INT_T, op=[]),
  dict(a="D", b="Se", t=INT_T, op=[dict(t0=0.10,t1=0.92,kind="door",swing=1)]),
- dict(a="G2",b="K1", t=INT_T, op=[dict(t0=2.61,t1=3.51,kind="door",swing=-1)]),
+ dict(a="G2",b="K1", t=INT_T, op=[dict(t0=2.61,t1=3.51,kind="door",swing=1,side=-1)]),
  dict(a="K1",b="K2", t=INT_T, op=[dict(t0=1.98,t1=2.85,kind="door",swing=-1)]),
  dict(a="H1",b="H4", t=0.10,  op=[]),
  dict(a="G1",b="G4", t=0.06,  op=[dict(t0=0,t1=99,kind="glass")]),

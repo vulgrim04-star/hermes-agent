@@ -368,7 +368,7 @@ function buildWall(w){
         const hinge=at(o.swing>0?o.t0:o.t1,0);
         const wDoor=o.t1-o.t0;
         const base=angOf(a,b)+(o.swing>0?0:180);
-        const th=(base+o.swing*76)*Math.PI/180;
+        const th=(base+(o.side===undefined?o.swing:o.side)*76)*Math.PI/180;
         const q=[[0,-0.02],[wDoor,-0.02],[wDoor,0.02],[0,0.02]].map(([x,y])=>
           [hinge[0]+x*Math.cos(th)-y*Math.sin(th), hinge[1]+x*Math.sin(th)+y*Math.cos(th)]);
         prism(q,0.02,WH,RGB.white,{topRgb:RGB.chalk,cull:CULL});

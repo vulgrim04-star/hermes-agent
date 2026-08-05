@@ -81,14 +81,31 @@ class Sheet:
         c.restoreState()
 
 # ------------------------------------------------------------------- murs 2D
+def on_outline(p, tol=0.06):
+    """le point tombe-t-il sur une façade ?"""
+    for i in range(len(OUTLINE)):
+        a, b = V[OUTLINE[i]], V[OUTLINE[(i+1) % len(OUTLINE)]]
+        (ux, uy), L = unit(a, b)
+        t = (p[0]-a[0])*ux + (p[1]-a[1])*uy
+        if -tol <= t <= L+tol:
+            if abs((p[0]-a[0])*(-uy) + (p[1]-a[1])*ux) <= tol: return True
+    return False
+
 def wall_spans(w):
     """renvoie (segments pleins, ouvertures) en coordonnées le long du mur"""
     a, b = V[w["a"]], V[w["b"]]
     (ux, uy), L = unit(a, b)
+    if not w.get("ext"):                      # prolonge les cloisons dans les façades
+        ea = EXT_T if on_outline(a) else 0.0
+        eb = EXT_T if on_outline(b) else 0.0
+        if ea or eb:
+            a = (a[0]-ux*ea, a[1]-uy*ea)
+            L += ea + eb
     n = outward(a, b) if w.get("ext") else (-uy, ux)
     o0, o1 = (0, w["t"]) if w.get("ext") else (-w["t"]/2, w["t"]/2)
     at = lambda t, o: (a[0]+ux*t+n[0]*o, a[1]+uy*t+n[1]*o)
-    ops = sorted([dict(o, t0=max(0, o["t0"]), t1=min(L, o["t1"])) for o in w["op"]],
+    sh = EXT_T if (not w.get("ext") and on_outline(V[w["a"]])) else 0.0
+    ops = sorted([dict(o, t0=max(0, o["t0"]+sh), t1=min(L, o["t1"]+sh)) for o in w["op"]],
                  key=lambda o: o["t0"])
     solids, cur = [], 0.0
     for o in ops:
@@ -131,19 +148,19 @@ def draw_walls(sh):
                 sh.poly(q, fill=(1,1,1), stroke=None)
                 for t in (o["t0"], o["t1"]):
                     sh.line(at(t,o0), at(t,o1), col, 0.5)
-                sw = o.get("swing", 1)
+                sw = o.get("swing", 1); sd = o.get("side", sw)
                 wD = o["t1"]-o["t0"]
                 hinge = at(o["t0"] if sw > 0 else o["t1"], (o0+o1)/2)
                 base = math.degrees(math.atan2(u[1], u[0])) + (0 if sw > 0 else 180)
-                th = math.radians(base + sw*88)
+                th = math.radians(base + sd*88)
                 leaf = (hinge[0]+math.cos(th)*wD, hinge[1]+math.sin(th)*wD)
-                lt = math.radians(base + sw*88 + 90)
+                lt = math.radians(base + sd*88 + 90)
                 e = 0.045
                 sh.poly([hinge, leaf,
                          (leaf[0]+math.cos(lt)*e, leaf[1]+math.sin(lt)*e),
                          (hinge[0]+math.cos(lt)*e, hinge[1]+math.sin(lt)*e)],
                         fill=POCHE_I, stroke=INK, lw=0.35)
-                sh.arc(hinge, wD, -base, -(base + sw*88), col=(0.62,0.65,0.67), lw=0.5)
+                sh.arc(hinge, wD, base, base + sd*88, col=(0.58,0.61,0.63), lw=0.55)
 
 def draw_rooms(sh, furnished=True):
     for r in ROOMS:
