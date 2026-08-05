@@ -22,7 +22,7 @@ ROOMS = [
  dict(id="ch2", name="DRESSING", full="Dressing (chambre 2)", floor="parquet", ang=-22.9,
       label=(2.05,1.35), poly=["W","A","D","Dw"]),
  dict(id="ch1", name="CHAMBRE", full="Chambre", floor="parquet", ang=7.3,
-      label=(11.20,0.25), poly=["G2","N2","K2","K1"]),
+      label=(10.60,1.38), poly=["G2","N2","K2","K1"]),
  dict(id="log", name="LOGGIA", full="Loggia vitrée", floor="parquet", ang=7.3,
       label=(8.78,-1.95), poly=["G1","G2","G3","G4"]),
  dict(id="sdb", name="SALLE DE BAINS", full="Salle de bains", floor="carrelage", ang=6.6,
@@ -132,9 +132,12 @@ add(t="chair", x=8.31, y=-0.92, yaw=NO+90)
 add(t="chair", x=9.29, y=-0.80, yaw=NO-90)
 add(t="plant", x=9.35, y=-0.20, s=0.8)
 # ----------------------------------------------------------------- CHAMBRE
-add(t="rug", x=10.95,y=0.05, yaw=NO, w=2.60, d=2.20, col="greige")
-add(t="bed", x=10.809,y=0.008, yaw=7.03, w=1.45, l=2.00)
-at(along("N2","E",2.05,0.30,room="ch1"), t="wardrobe", yaw=ES, w=1.90, d=0.55, h=1.28, doors=3)
+add(t="rug", x=11.45,y=0.25, yaw=NO, w=2.60, d=2.20, col="greige")
+add(t="bed", x=11.655,y=0.234, yaw=186.7, w=1.45, l=2.00)          # tête contre la façade est
+at(along("N2","E",1.05,0.22,room="ch1"), t="cabinet", yaw=ES, w=0.45, d=0.40, h=0.46)
+at(along("N2","E",2.95,0.22,room="ch1"), t="cabinet", yaw=ES, w=0.45, d=0.40, h=0.46)
+at(along("G2","K1",1.225,0.30,room="ch1"), t="wardrobe", yaw=wallAng("G2","K1"),
+   w=1.75, d=0.55, h=1.28, doors=3)                                 # armoire côté loggia
 at(along("K1","K2",1.05,0.30,room="ch1"), t="wardrobe", yaw=wallAng("K1","K2"), w=1.60, d=0.60, h=1.22, doors=2)
 # ----------------------------------------------------------- SALLE DE BAINS
 at(along("H1","H4",1.05,0.42,room="sdb"), t="tub", yaw=wallAng("H1","H4"), w=0.75, l=1.65)
