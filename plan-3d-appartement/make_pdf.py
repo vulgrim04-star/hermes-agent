@@ -9,6 +9,7 @@ from reportlab.lib.utils import simpleSplit
 import plan_data as PD
 
 V, OUTLINE, ROOMS, WALLS, F = PD.V, PD.OUTLINE, PD.ROOMS, PD.WALLS, PD.F
+EXT_T = PD.EXT_T
 CEN = PD.CEN
 
 # ------------------------------------------------------------------ palette
@@ -96,6 +97,21 @@ def wall_spans(w):
     if cur < L-0.005: solids.append((cur, L))
     return at, ops, solids, L, (ux, uy), n, o0, o1
 
+def corner_patches(sh):
+    """comble les angles rentrants entre deux murs de façade dessinés vers l'extérieur"""
+    n = len(OUTLINE)
+    for i in range(n):
+        a, b, c = V[OUTLINE[i-1]], V[OUTLINE[i]], V[OUTLINE[(i+1) % n]]
+        na, nc = outward(a, b), outward(b, c)
+        t = EXT_T
+        p1 = (b[0]+na[0]*t, b[1]+na[1]*t)
+        p2 = (b[0]+nc[0]*t, b[1]+nc[1]*t)
+        mid = ((na[0]+nc[0])/2, (na[1]+nc[1])/2)
+        m = math.hypot(*mid)
+        if m < 1e-6: continue
+        p3 = (b[0]+mid[0]/m*t*1.02, b[1]+mid[1]/m*t*1.02)
+        sh.poly([b, p1, p3, p2], fill=POCHE)
+
 def draw_walls(sh):
     for w in WALLS:
         at, ops, solids, L, u, n, o0, o1 = wall_spans(w)
@@ -121,8 +137,13 @@ def draw_walls(sh):
                 base = math.degrees(math.atan2(u[1], u[0])) + (0 if sw > 0 else 180)
                 th = math.radians(base + sw*88)
                 leaf = (hinge[0]+math.cos(th)*wD, hinge[1]+math.sin(th)*wD)
-                sh.line(hinge, leaf, INK, 0.6)
-                sh.arc(hinge, wD, -base, -(base + sw*88))     # y inversé sur la page
+                lt = math.radians(base + sw*88 + 90)
+                e = 0.045
+                sh.poly([hinge, leaf,
+                         (leaf[0]+math.cos(lt)*e, leaf[1]+math.sin(lt)*e),
+                         (hinge[0]+math.cos(lt)*e, hinge[1]+math.sin(lt)*e)],
+                        fill=POCHE_I, stroke=INK, lw=0.35)
+                sh.arc(hinge, wD, -base, -(base + sw*88), col=(0.62,0.65,0.67), lw=0.5)
 
 def draw_rooms(sh, furnished=True):
     for r in ROOMS:
@@ -344,6 +365,7 @@ def sheet(c, W, H, k, title, sub, scale_txt, page, npages, furnished):
     draw_rooms(sh)
     if furnished: draw_furniture(sh)
     draw_walls(sh)
+    corner_patches(sh)
     draw_dims(sh, full=not furnished)
 
     areas = PD.areas()
