@@ -16,7 +16,7 @@ axonométrie meublée et en planches 2D à l'échelle.
 
 Le contour et chaque axe de cloison ont été suivis sur le plan d'origine :
 détection des traits, régression sur les points relevés, intersection des
-droites pour obtenir les sommets. Le contour fermé mesure **74,04 m²** et les
+droites pour obtenir les sommets. Le contour fermé mesure **74,77 m²** et les
 longueurs retrouvées tombent à moins d'un centimètre des cotes portées sur le
 plan (6,41 / 7,20 / 6,18 / 5,47 / 2,96 / 6,30 m). Les baies sont positionnées
 d'après la densité du hachuré le long de chaque façade.
@@ -26,8 +26,8 @@ pour dégager la vue plongeante ; hauteur sous plafond réelle 2,55 m.
 
 ## Surfaces
 
-Séjour-cuisine-entrée 33,9 · Chambre 13,0 · Dressing 11,3 · Salle d'eau 5,6 ·
-Salle de bains 5,2 · Loggia 5,0 — **73,9 m²**.
+Séjour-cuisine-entrée 34,8 · Chambre 13,0 · Dressing 11,3 · Salle d'eau 5,6 ·
+Salle de bains 5,2 · Loggia 5,0 — **74,8 m²**.
 
 ## Reconstruire
 

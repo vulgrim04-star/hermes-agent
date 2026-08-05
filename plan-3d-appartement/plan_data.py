@@ -6,19 +6,18 @@ import math, json
 
 V = {
  "W":(-0.041,-0.041), "N1":(5.861,-2.537), "N2":(13.002,-1.621), "E":(12.277,4.517),
- "B1":(6.849,3.886), "P1":(5.828,4.262), "P2":(5.527,3.712), "P3":(4.625,3.473),
- "B2":(5.098,4.597), "S":(2.380,5.775),
+ "B1":(6.849,3.886), "B2":(5.098,4.597), "S":(2.380,5.775),
  "A":(2.415,-1.079), "D":(4.048,2.808), "Dw":(1.577,3.847), "Se":(4.844,4.707),
  "G1":(7.817,-2.286), "G2":(9.930,-2.015), "G3":(9.639,0.342), "G4":(7.544,0.022),
  "K1":(9.417,2.143), "K2":(12.515,2.504), "H1":(9.974,2.208), "H4":(9.711,4.219),
  "Ea":(5.379,2.225), "Eb":(6.054,1.921),   # bloc de rangement de l'entrée
 }
-OUTLINE = ["W","N1","N2","E","B1","P1","P2","P3","B2","S"]
+OUTLINE = ["W","N1","N2","E","B1","B2","S"]
 
 ROOMS = [
  dict(id="sej", name="SÉJOUR", full="Séjour, cuisine et entrée", floor="parquet", ang=-22.9,
       label=(5.30,-0.60),
-      poly=["A","N1","G1","G4","G3","K1","H1","H4","B1","P1","P2","P3","Se","D"]),
+      poly=["A","N1","G1","G4","G3","K1","H1","H4","B1","B2","Se","D"]),
  dict(id="ch2", name="DRESSING", full="Dressing (chambre 2)", floor="parquet", ang=-22.9,
       label=(2.05,1.35), poly=["W","A","D","Dw"]),
  dict(id="ch1", name="CHAMBRE", full="Chambre", floor="parquet", ang=7.3,
@@ -30,7 +29,7 @@ ROOMS = [
  dict(id="sde", name="SALLE D'EAU", full="Salle d'eau", floor="carrelage", ang=-23.4,
       label=(3.82,3.92), poly=["Dw","D","Se","S"]),
 ]
-EXTRA_LABELS = [("CUISINE",(8.70,3.35)), ("REPAS",(7.89,1.67)), ("ENTRÉE",(5.15,3.42))]
+EXTRA_LABELS = [("CUISINE",(8.70,3.35)), ("REPAS",(7.89,1.67)), ("ENTRÉE",(5.02,3.12))]
 
 EXT_T, INT_T, WH = 0.22, 0.09, 1.30
 
@@ -42,15 +41,10 @@ WALLS = [
  dict(a="N2",b="E",  t=EXT_T, ext=1, op=[]),
  dict(a="E", b="B1", t=EXT_T, ext=1, op=[dict(t0=1.55,t1=2.42,kind="win",sill=1.00),
                                          dict(t0=2.74,t1=3.10,kind="win",sill=1.15)]),
- dict(a="B1",b="P1", t=EXT_T, ext=1, op=[]),
- dict(a="P1",b="P2", t=EXT_T, ext=1, op=[]),
- dict(a="P2",b="P3", t=EXT_T, ext=1, keep=1,                       # porte d'entrée : jamais masquée
-      op=[dict(t0=0.06,t1=0.92,kind="door",swing=-1,side=-1,main=1)]),
- dict(a="P3",b="B2", t=EXT_T, ext=1, op=[]),
+ dict(a="B1",b="B2", t=EXT_T, ext=1, keep=1,                       # porte d'entrée : jamais masquée
+      op=[dict(t0=0.545,t1=1.345,kind="door",swing=-1,side=-1,main=1)]),
  dict(a="B2",b="S",  t=EXT_T, ext=1, op=[dict(t0=1.63,t1=2.25,kind="win",sill=1.05)]),
  dict(a="S", b="W",  t=EXT_T, ext=1, op=[]),
- dict(a="Eb",b="B1", t=INT_T, op=[]),                 # cloison entrée / cuisine
- dict(a="Ea",b="Eb", t=0.07,  op=[]),                 # fond des placards d'entrée
  dict(a="A", b="D",  t=INT_T, op=[dict(t0=2.77,t1=3.63,kind="door",swing=-1)]),
  dict(a="Dw",b="D",  t=INT_T, op=[]),
  dict(a="D", b="Se", t=INT_T, op=[dict(t0=0.10,t1=0.92,kind="door",swing=1)]),
@@ -110,8 +104,7 @@ for dx,dy,ry in ((-0.02,-0.62,SU+90),(0.12,0.62,SU-90),(-0.82,-0.05,SU),(0.86,0.
 at(along("B1","E",0.62,0.33,room="sej"), t="cabinet", yaw=SU, w=0.65, d=0.62, h=1.28)
 add(t="kitchen", x=0, y=0, ka="B1", kb="E", t0=1.00, t1=2.90, off=0.33, yaw=SU)
 # ------------------------------------------------------------------ ENTRÉE
-add(t="wardrobe", x=5.918, y=2.583, yaw=68.2, w=1.09, d=0.72, h=1.30, doors=2)
-add(t="wardrobe", x=6.375, y=3.520, yaw=68.2, w=0.58, d=0.52, h=1.30, doors=1)
+add(t="wardrobe", x=5.987, y=2.746, yaw=68.1, w=1.45, d=0.74, h=1.30, doors=2)   # dégagé du débattement de la porte
 # ------------------------------------------- CHAMBRE 2 → DRESSING + BUREAU
 add(t="rug", x=2.20, y=2.05, yaw=NW, w=2.10, d=1.50, col="greige")
 at(along("W","S",2.50,0.31,room="ch2"), t="wardrobe", yaw=WE, w=3.10, d=0.60, h=1.28, doors=4)

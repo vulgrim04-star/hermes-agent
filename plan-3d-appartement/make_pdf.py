@@ -409,11 +409,11 @@ def sheet(c, W, H, k, title, sub, scale_txt, page, npages, furnished):
 def build(path, page_w, page_h, scale_den):
     k = mm / (scale_den/1000.0)                  # points par mètre
     c = rcanvas.Canvas(path, pagesize=(page_w, page_h))
-    c.setTitle("Appartement 74 m² — plan 2D 1:%d" % scale_den)
-    sheet(c, page_w, page_h, k, "Appartement 3 pièces — 74 m²",
+    c.setTitle("Appartement 74,8 m² — plan 2D 1:%d" % scale_den)
+    sheet(c, page_w, page_h, k, "Appartement 3 pièces — 74,8 m²",
           "Plan meublé",
           "1:%d" % scale_den, 1, 2, True)
-    sheet(c, page_w, page_h, k, "Appartement 3 pièces — 74 m²",
+    sheet(c, page_w, page_h, k, "Appartement 3 pièces — 74,8 m²",
           "Plan de base coté",
           "1:%d" % scale_den, 2, 2, False)
     c.save()
