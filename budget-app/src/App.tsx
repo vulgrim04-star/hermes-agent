@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { BudgetsPage } from './pages/BudgetsPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ImportPage } from './pages/ImportPage.js';
+import { NetWorthPage } from './pages/NetWorthPage.js';
 import { ReviewPage } from './pages/ReviewPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { TransactionsPage } from './pages/TransactionsPage.js';
@@ -12,6 +13,7 @@ const NAVIGATION = [
   { to: '/transactions', label: 'Écritures' },
   { to: '/revision', label: 'Révision' },
   { to: '/budgets', label: 'Budgets' },
+  { to: '/patrimoine', label: 'Patrimoine' },
   { to: '/import', label: 'Import' },
   { to: '/reglages', label: 'Réglages' },
 ];
@@ -48,6 +50,7 @@ export function App() {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/revision" element={<ReviewPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
+          <Route path="/patrimoine" element={<NetWorthPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/reglages" element={<SettingsPage />} />
           {/* Anciennes adresses, conservées pour les signets. */}

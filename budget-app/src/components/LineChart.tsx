@@ -46,6 +46,7 @@ export function LineChart({
   const rawMax = Math.max(...all, 0);
   const rawMin = Math.min(...all, 0);
   const { min, max, ticks } = niceScale(rawMin, rawMax);
+  const labelStride = Math.ceil(labels.length / 12);
 
   const x = (index: number) =>
     labels.length === 1
@@ -84,18 +85,23 @@ export function LineChart({
           </g>
         ))}
 
-        {labels.map((label, index) => (
-          <text
-            key={label}
-            x={x(index)}
-            y={height - 8}
-            textAnchor="middle"
-            fontSize="11"
-            fill={CHART_INK.secondary}
-          >
-            {label}
-          </text>
-        ))}
+        {labels.map((label, index) =>
+          // Au-delà d'une douzaine de points, les libellés se chevauchent et
+          // deviennent illisibles : on n'en garde qu'un sur n, extrémités
+          // comprises, plutôt que de les empiler.
+          index % labelStride === 0 || index === labels.length - 1 ? (
+            <text
+              key={label}
+              x={x(index)}
+              y={height - 8}
+              textAnchor="middle"
+              fontSize="11"
+              fill={CHART_INK.secondary}
+            >
+              {label}
+            </text>
+          ) : null,
+        )}
 
         {series.map((entry, order) => {
           const color = SERIES_COLORS[entry.hue ?? order] ?? CHART_INK.muted;

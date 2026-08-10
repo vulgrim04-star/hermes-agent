@@ -225,6 +225,45 @@ export interface AnnualDashboard {
   uncategorised: { count: number; amountCents: number };
 }
 
+export interface Position {
+  assetId: number;
+  label: string;
+  kind: string;
+  isLiability: boolean;
+  owner: Owner;
+  valueCents: number | null;
+  quantityE8: number | null;
+  unitPriceCents: number | null;
+  /** D'où vient le chiffre : saisi, déduit d'un relevé, ou reporté. */
+  origin: 'saisi' | 'releve' | 'report' | 'inconnu';
+  reportedFrom: string | null;
+}
+
+export interface NetWorthPoint {
+  period: string;
+  assetsCents: number;
+  liabilitiesCents: number;
+  netCents: number;
+  carriedCount: number;
+  unknownCount: number;
+}
+
+export interface NetWorthSnapshot {
+  period: string;
+  assets: { id: number; label: string }[];
+  positions: Position[];
+  series: NetWorthPoint[];
+}
+
+export interface Pillar3aStatus {
+  year: number;
+  ceilingCents: number | null;
+  paidCents: number;
+  perPerson: { owner: Owner; paidCents: number; remainingCents: number | null }[];
+  daysLeft: number;
+  message: string | null;
+}
+
 export interface Transaction {
   id: number;
   account_id: number;
