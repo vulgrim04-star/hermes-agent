@@ -5,7 +5,16 @@ import { formatCents, parseAmountToCents } from '../../shared/money.js';
 import { apiGet, apiSend } from '../lib/api.js';
 import type { Account, NetWorthSnapshot, Pillar3aStatus, Position } from '../lib/api.js';
 import { OWNER_ORDER, ownerLabel } from '../lib/labels.js';
-import { Amount, Badge, Button, Card, EmptyState, Field, inputClass } from '../components/ui.js';
+import {
+  Amount,
+  Badge,
+  Button,
+  Card,
+  DownloadLink,
+  EmptyState,
+  Field,
+  inputClass,
+} from '../components/ui.js';
 import { LineChart } from '../components/LineChart.js';
 
 const KINDS = [
@@ -468,6 +477,11 @@ function YearEndCard({ period }: { period: string }) {
     <Card
       title={`État au 31 décembre ${year - 1}`}
       description="La date que retient la déclaration de fortune du canton de Fribourg."
+      actions={
+        <DownloadLink href={`/api/export/positions.xlsx?mois=${target}`}>
+          Télécharger l’état (.xlsx)
+        </DownloadLink>
+      }
     >
       <table className="w-full text-sm">
         <tbody>

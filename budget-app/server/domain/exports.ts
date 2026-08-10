@@ -14,6 +14,7 @@ import ExcelJS from 'exceljs';
 import { formatSwissDate } from '../../shared/dates.js';
 import type { Owner } from '../../shared/model.js';
 import type { Db } from '../db/connection.js';
+import { positionsAt } from './networth.js';
 
 export interface ExportFilters {
   from?: string;
@@ -225,7 +226,6 @@ export async function toXlsx(rows: readonly ExportRow[]): Promise<Buffer> {
  * justificative, chaque position portant l'origine de son chiffre.
  */
 export async function positionsToXlsx(db: Db, period: string): Promise<Buffer> {
-  const { positionsAt } = await import('./networth.js');
   const positions = positionsAt(db, period);
 
   const workbook = new ExcelJS.Workbook();

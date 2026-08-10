@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 
 import { openDatabase } from '../db/connection.js';
 import type { Db } from '../db/connection.js';
-import { exportRows, toCsv, toXlsx } from './exports.js';
+import { exportRows, positionsToXlsx, toCsv, toXlsx } from './exports.js';
 import { normalizeLabel } from './fingerprint.js';
 import { replaceSplits } from './splits.js';
 
@@ -163,5 +163,71 @@ describe('classeur Excel', () => {
   it('produit un classeur vide mais valide quand rien ne correspond', async () => {
     const workbook = await reload(await toXlsx([]));
     expect(workbook.worksheets[0]!.rowCount).toBe(1);
+  });
+});
+
+describe('état des positions', () => {
+  function asset(label: string, extra: Record<string, unknown> = {}): number {
+    const columns = { label, kind: 'autre', is_liability: 0, owner: 'commun', ...extra };
+    return Number(
+      db
+        .prepare(
+          `INSERT INTO assets (label, kind, is_liability, owner)
+           VALUES (@label, @kind, @is_liability, @owner)`,
+        )
+        .run(columns).lastInsertRowid,
+    );
+  }
+
+  function valuate(assetId: number, period: string, valueCents: number, quantityE8?: number): void {
+    db.prepare(
+      `INSERT INTO asset_valuations (asset_id, period, value_cents, quantity_e8, unit_price_cents)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(assetId, period, valueCents, quantityE8 ?? null, quantityE8 === undefined ? null : 5_843_215);
+  }
+
+  it('rend une ligne par position, valeurs typées en nombres', async () => {
+    const etf = asset('ETF Monde', { kind: 'titres' });
+    valuate(etf, '2025-12', 5_000_000);
+
+    const sheet = (await reload(await positionsToXlsx(db, '2025-12'))).worksheets[0]!;
+    expect(sheet.getRow(1).getCell(1).value).toBe('Position');
+
+    const row = sheet.getRow(2);
+    expect(row.getCell(1).value).toBe('ETF Monde');
+    expect(row.getCell(6).value).toBe(50000);
+    expect(typeof row.getCell(6).value).toBe('number');
+  });
+
+  it('sort une dette en négatif, pour que la somme soit la fortune nette', async () => {
+    const dette = asset('Prêt véhicule', { kind: 'dette', is_liability: 1 });
+    valuate(dette, '2025-12', 1_200_000);
+
+    const sheet = (await reload(await positionsToXlsx(db, '2025-12'))).worksheets[0]!;
+    expect(sheet.getRow(2).getCell(6).value).toBe(-12000);
+  });
+
+  it('porte la quantité et le cours d’une position suivie en quantité', async () => {
+    const btc = asset('Bitcoin', { kind: 'crypto', tracks_quantity: 1 });
+    valuate(btc, '2025-12', 2_501_773, 42_815_000);
+
+    const row = (await reload(await positionsToXlsx(db, '2025-12'))).worksheets[0]!.getRow(2);
+    expect(row.getCell(4).value).toBeCloseTo(0.42815, 10);
+    expect(row.getCell(5).value).toBeCloseTo(58432.15, 10);
+  });
+
+  it('annonce l’origine du chiffre, report compris', async () => {
+    const etf = asset('ETF Monde', { kind: 'titres' });
+    valuate(etf, '2025-06', 5_000_000);
+
+    const sheet = (await reload(await positionsToXlsx(db, '2025-12'))).worksheets[0]!;
+    // Aucune saisie en décembre : la valeur de juin est reportée, et le dit.
+    expect(sheet.getRow(2).getCell(7).value).toBe('report');
+  });
+
+  it('laisse une position non renseignée sans valeur plutôt qu’à zéro', async () => {
+    asset('Immeuble', { kind: 'immobilier' });
+    const row = (await reload(await positionsToXlsx(db, '2025-12'))).worksheets[0]!.getRow(2);
+    expect(row.getCell(6).value).toBeNull();
   });
 });

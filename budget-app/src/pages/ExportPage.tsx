@@ -33,6 +33,8 @@ export function ExportPage() {
 }
 
 function ExportCard() {
+  // La déclaration de fortune porte sur l'année close, pas sur l'année en cours.
+  const lastClosedYear = new Date().getUTCFullYear() - 1;
   const [filters, setFilters] = useState({
     from: '',
     to: '',
@@ -143,6 +145,18 @@ function ExportCard() {
         pivotables. Le CSV est en UTF-8 avec BOM et séparateur point-virgule : Excel l’ouvre sans
         assistant d’import et sans casser les accents.
       </p>
+
+      <div className="mt-5 border-t border-slate-100 pt-5">
+        <p className="mb-3 text-sm text-slate-600">
+          <span className="font-medium">État des positions au 31 décembre {lastClosedYear}</span> —
+          une ligne par position, avec quantité, cours, valeur et l’origine du chiffre (saisi,
+          déduit d’un relevé, ou reporté d’un mois antérieur). C’est la pièce à joindre à la
+          déclaration de fortune.
+        </p>
+        <DownloadLink href={`/api/export/positions.xlsx?mois=${lastClosedYear}-12`}>
+          Télécharger l’état des positions (.xlsx)
+        </DownloadLink>
+      </div>
     </Card>
   );
 }
