@@ -9,6 +9,7 @@
  */
 
 import { decodeBuffer } from '../csv/decode.js';
+import { normalizeAccountKey } from '../../../shared/account-key.js';
 import { findIban } from '../../../shared/iban.js';
 import type { ParseIssue, ParseResult, ParsedStatement, ParsedTransaction } from '../types.js';
 import { parseBalanceLine, parseEntryLine, parseNarrative } from './fields.js';
@@ -149,6 +150,9 @@ function readStatement(fields: readonly Mt940Field[], issues: ParseIssue[]): Sta
     const parsedNarrative = parseNarrative(narrative);
     transactions.push({
       lineNumber,
+      // Le MT940 décrit un compte par relevé : la ligne, elle, n'en porte pas.
+      account: null,
+      externalCategory: null,
       valueDate: entry.valueDate,
       bookingDate: entry.bookingDate,
       amountCents: entry.amountCents,
@@ -178,11 +182,14 @@ function readStatement(fields: readonly Mt940Field[], issues: ParseIssue[]): Sta
   }
 
   const accountKey = accountRaw === null ? null : (findIban(accountRaw) ?? accountRaw.trim());
+  const accountLabel =
+    accountKey === null ? null : (normalizeAccountKey(accountKey)?.label ?? accountKey);
 
   return {
     rowsRead,
     parsed: {
       accountKey,
+      accountLabel: accountLabel,
       currency: statementCurrency,
       statementReference,
       openingBalanceCents: opening?.amountCents ?? null,

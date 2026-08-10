@@ -6,11 +6,22 @@
  * les parseurs testables sur des échantillons sans monter une base.
  */
 
+import type { AccountIdentity } from '../../shared/account-key.js';
+
 export type ImportFormat = 'csv' | 'mt940';
 
 export interface ParsedTransaction {
   /** Ligne d'origine dans le fichier, pour pouvoir y retourner en cas de doute. */
   lineNumber: number | null;
+  /**
+   * Compte porté par la ligne elle-même. Un export UBS mélange plusieurs
+   * comptes et cartes dans un seul fichier ; sans cette clé, les achats par
+   * carte et leur règlement se retrouvent sur le même compte et les dépenses
+   * sont comptées deux fois.
+   */
+  account: AccountIdentity | null;
+  /** Catégorie livrée par la banque, conservée telle quelle. */
+  externalCategory: string | null;
   /** Date de valeur, ISO `AAAA-MM-JJ`. */
   valueDate: string;
   /** Date comptable si le format la porte. */
@@ -35,6 +46,8 @@ export interface ParseIssue {
 export interface ParsedStatement {
   /** IBAN normalisé lu dans le fichier, `null` si le format ne le porte pas. */
   accountKey: string | null;
+  /** Libellé lisible à proposer si le compte doit être créé. */
+  accountLabel: string | null;
   currency: string;
   statementReference: string | null;
   openingBalanceCents: number | null;
@@ -78,6 +91,9 @@ export const CANONICAL_FIELDS = [
   'reference',
   'currency',
   'counterparty',
+  'account',
+  'direction',
+  'externalCategory',
 ] as const;
 
 export type CanonicalField = (typeof CANONICAL_FIELDS)[number];

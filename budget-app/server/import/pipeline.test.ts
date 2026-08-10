@@ -265,3 +265,75 @@ describe('suppression d’un lot', () => {
     expect(validateBatch(db, again)).toMatchObject({ kind: 'valide', imported: 8 });
   });
 });
+
+describe('un fichier, plusieurs comptes', () => {
+  function accounts(): { account_key: string; label: string }[] {
+    return db
+      .prepare('SELECT account_key, label FROM accounts ORDER BY id')
+      .all() as { account_key: string; label: string }[];
+  }
+
+  it('crée un compte par compte rencontré, avec un libellé lisible', () => {
+    prepare('ubs-export-multi-comptes.csv');
+    expect(accounts()).toEqual([
+      { account_key: 'CH5604835012345678009', label: 'CH56 0483 5012 3456 7800 9' },
+      { account_key: 'CARTE-7648', label: 'Carte ****7648' },
+      { account_key: 'CARTE-1601', label: 'Carte ****1601' },
+      { account_key: 'CH9300762011623852957', label: 'CH93 0076 2011 6238 5295 7' },
+    ]);
+  });
+
+  it('ouvre un relevé par compte dans le même lot', () => {
+    const batchId = prepare('ubs-export-multi-comptes.csv');
+    const report = getBatchReport(db, batchId) as { statements: { account_id: number }[] };
+    expect(report.statements).toHaveLength(4);
+  });
+
+  it('rattache chaque écriture au compte porté par sa ligne', () => {
+    const batchId = prepare('ubs-export-multi-comptes.csv');
+    validateBatch(db, batchId, true);
+
+    const perAccount = db
+      .prepare(
+        `SELECT a.account_key AS key, COUNT(*) AS n
+           FROM transactions t JOIN accounts a ON a.id = t.account_id
+          GROUP BY a.account_key ORDER BY n DESC`,
+      )
+      .all() as { key: string; n: number }[];
+    expect(perAccount).toEqual([
+      { key: 'CH5604835012345678009', n: 9 },
+      { key: 'CARTE-7648', n: 4 },
+      { key: 'CARTE-1601', n: 2 },
+      { key: 'CH9300762011623852957', n: 2 },
+    ]);
+  });
+
+  it('propose le règlement de carte comme transfert interne', () => {
+    const batchId = prepare('ubs-export-multi-comptes.csv');
+    const outcome = validateBatch(db, batchId, true);
+    if (outcome.kind !== 'valide') throw new Error('validation refusée');
+
+    // Le règlement de carte et le virement d'épargne : deux paires opposées
+    // entre deux comptes du ménage, que rien ne distinguait tant que tout
+    // était rattaché au même compte.
+    expect(outcome.transfersProposed).toBe(2);
+  });
+
+  it('reste idempotent : réimporter le même fichier n’ajoute rien', () => {
+    validateBatch(db, prepare('ubs-export-multi-comptes.csv'), true);
+    const first = transactionCount();
+
+    const second = prepare('ubs-export-multi-comptes.csv');
+    const outcome = validateBatch(db, second, true);
+    expect(outcome).toMatchObject({ kind: 'valide', imported: 0 });
+    expect(transactionCount()).toBe(first);
+  });
+
+  it('conserve les deux lignes strictement identiques', () => {
+    validateBatch(db, prepare('ubs-export-multi-comptes.csv'), true);
+    const doubles = db
+      .prepare("SELECT COUNT(*) AS n FROM transactions WHERE label LIKE 'BULLETIN%'")
+      .get() as { n: number };
+    expect(doubles.n).toBe(2);
+  });
+});

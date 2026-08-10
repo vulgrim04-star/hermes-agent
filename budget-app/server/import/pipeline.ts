@@ -143,7 +143,7 @@ export function prepareImport(db: Db, input: Uint8Array, options: PrepareOptions
       const account =
         statement.accountKey === null
           ? requireAccount(db, options.accountId as number)
-          : resolveAccount(db, statement.accountKey, statement.currency);
+          : resolveAccount(db, statement.accountKey, statement.currency, statement.accountLabel);
 
       const movements = statement.transactions.reduce((total, t) => total + t.amountCents, 0);
       const reconciled =
@@ -291,8 +291,18 @@ function requireAccount(db: Db, accountId: number): AccountRow {
   return account;
 }
 
-/** Retrouve le compte par son IBAN, ou le crée pour que l'import ne bloque pas. */
-function resolveAccount(db: Db, accountKey: string, currency: string): AccountRow {
+/**
+ * Retrouve le compte par sa clé, ou le crée pour que l'import ne bloque pas.
+ *
+ * Le libellé vient du fichier quand il en propose un — « Carte \*\*\*\*7648 »
+ * se lit, un IBAN brut non. Il reste renommable dans les réglages.
+ */
+function resolveAccount(
+  db: Db,
+  accountKey: string,
+  currency: string,
+  label: string | null,
+): AccountRow {
   const existing = db.prepare('SELECT * FROM accounts WHERE account_key = ?').get(accountKey) as
     | AccountRow
     | undefined;
@@ -301,7 +311,7 @@ function resolveAccount(db: Db, accountKey: string, currency: string): AccountRo
   const id = Number(
     db
       .prepare('INSERT INTO accounts (account_key, label, currency) VALUES (?, ?, ?)')
-      .run(accountKey, formatIban(accountKey), currency).lastInsertRowid,
+      .run(accountKey, label ?? formatIban(accountKey), currency).lastInsertRowid,
   );
   return requireAccount(db, id);
 }

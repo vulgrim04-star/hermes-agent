@@ -9,6 +9,7 @@
 
 import Papa from 'papaparse';
 
+import { normalizeAccountKey } from '../../../shared/account-key.js';
 import { parseSwissDate } from '../../../shared/dates.js';
 import { parseAmountToCents } from '../../../shared/money.js';
 import { findIban } from '../../../shared/iban.js';
@@ -17,6 +18,7 @@ import type {
   ColumnSample,
   CsvOutcome,
   ParseIssue,
+  ParsedStatement,
   ParsedTransaction,
 } from '../types.js';
 import { decodeBuffer, splitLines } from './decode.js';
@@ -159,9 +161,25 @@ export function parseCsv(input: Uint8Array, options: CsvParseOptions = {}): CsvO
     const currency = cellAt(row, mapping.currency).toUpperCase();
     const reference = cellAt(row, mapping.reference);
     const counterparty = cellAt(row, mapping.counterparty);
+    const externalCategory = cellAt(row, mapping.externalCategory);
+
+    // Le sens annoncé par la banque ne décide de rien : il contrôle. Une
+    // contradiction avec le signe du montant se signale et se garde — c'est
+    // souvent un remboursement classé « Dépense » par la banque.
+    const contradiction = directionConflict(cellAt(row, mapping.direction), amount.cents);
+    if (contradiction !== null) {
+      issues.push({
+        lineNumber,
+        severity: 'avertissement',
+        message: contradiction,
+        raw: row.join(delimiter),
+      });
+    }
 
     transactions.push({
       lineNumber,
+      account: normalizeAccountKey(cellAt(row, mapping.account)),
+      externalCategory: externalCategory === '' ? null : externalCategory,
       valueDate,
       bookingDate: bookingDate === valueDate ? null : bookingDate,
       amountCents: amount.cents,
@@ -176,7 +194,27 @@ export function parseCsv(input: Uint8Array, options: CsvParseOptions = {}): CsvO
     });
   }
 
-  const chain = reconcileRunningBalance(transactions, issues);
+  // Un fichier, plusieurs comptes : chaque groupe devient un relevé, et le
+  // contrôle de solde glissant s'exécute groupe par groupe — enchaîner les
+  // soldes de deux comptes différents n'aurait aucun sens.
+  const groups = groupByAccount(transactions, mapping, () => findIban(text));
+  let reversed = false;
+
+  const statements: ParsedStatement[] = groups.map((group) => {
+    const chain = reconcileRunningBalance(group.rows, issues);
+    reversed = reversed || chain.reversed;
+    return {
+      accountKey: group.key,
+      accountLabel: group.label,
+      currency: group.rows[0]?.currency ?? defaultCurrency,
+      statementReference: null,
+      openingBalanceCents: chain.openingCents,
+      closingBalanceCents: chain.closingCents,
+      openingDate: periodBound(chain.transactions, 'min'),
+      closingDate: periodBound(chain.transactions, 'max'),
+      transactions: chain.transactions,
+    };
+  });
 
   return {
     kind: 'analyse',
@@ -184,18 +222,7 @@ export function parseCsv(input: Uint8Array, options: CsvParseOptions = {}): CsvO
       format: 'csv',
       rowsRead,
       issues,
-      statements: [
-        {
-          accountKey: findIban(text),
-          currency: transactions[0]?.currency ?? defaultCurrency,
-          statementReference: null,
-          openingBalanceCents: chain.openingCents,
-          closingBalanceCents: chain.closingCents,
-          openingDate: chain.transactions[0]?.valueDate ?? null,
-          closingDate: chain.transactions.at(-1)?.valueDate ?? null,
-          transactions: chain.transactions,
-        },
-      ],
+      statements,
       csv: {
         encoding,
         delimiter,
@@ -203,10 +230,110 @@ export function parseCsv(input: Uint8Array, options: CsvParseOptions = {}): CsvO
         headers,
         signature,
         mapping,
-        reversed: chain.reversed,
+        reversed,
       },
     },
   };
+}
+
+interface StatementGroup {
+  key: string | null;
+  label: string | null;
+  rows: ParsedTransaction[];
+}
+
+/**
+ * Regroupe les écritures par compte.
+ *
+ * Sans colonne de compte, le fichier ne décrit qu'un relevé et l'IBAN est
+ * cherché dans le préambule, comme avant. Avec une colonne de compte, l'ordre
+ * des relevés suit la première apparition de chaque compte dans le fichier :
+ * l'écran de diagnostic les présente donc dans l'ordre du relevé principal
+ * d'abord, ce qui est l'ordre que la banque a choisi.
+ */
+function groupByAccount(
+  transactions: readonly ParsedTransaction[],
+  mapping: ColumnMapping,
+  fallbackKey: () => string | null,
+): StatementGroup[] {
+  if (mapping.account === undefined) {
+    return [{ key: fallbackKey(), label: null, rows: [...transactions] }];
+  }
+
+  const groups = new Map<string, StatementGroup>();
+  const unassigned: ParsedTransaction[] = [];
+
+  for (const transaction of transactions) {
+    if (transaction.account === null) {
+      unassigned.push(transaction);
+      continue;
+    }
+    const existing = groups.get(transaction.account.key);
+    if (existing === undefined) {
+      groups.set(transaction.account.key, {
+        key: transaction.account.key,
+        label: transaction.account.label,
+        rows: [transaction],
+      });
+    } else {
+      existing.rows.push(transaction);
+    }
+  }
+
+  const statements = [...groups.values()];
+  // Une ligne sans compte lisible n'est pas perdue : elle forme un relevé sans
+  // clé, que le pipeline demandera de rattacher à la main.
+  if (unassigned.length > 0) statements.push({ key: null, label: null, rows: unassigned });
+  return statements;
+}
+
+/**
+ * Borne de la période couverte.
+ *
+ * Prendre la première et la dernière ligne serait plus simple, mais faux : un
+ * export UBS est en ordre décroissant, et l'ordre du fichier ne peut pas être
+ * trié sans casser le rang d'occurrence dont dépend l'empreinte.
+ */
+function periodBound(rows: readonly ParsedTransaction[], bound: 'min' | 'max'): string | null {
+  let result: string | null = null;
+  for (const row of rows) {
+    if (result === null) result = row.valueDate;
+    else if (bound === 'min' ? row.valueDate < result : row.valueDate > result) {
+      result = row.valueDate;
+    }
+  }
+  return result;
+}
+
+const EXPENSE_WORDS = ['depense', 'ausgabe', 'expense', 'debit', 'sortie', 'belastung'];
+const INCOME_WORDS = ['revenu', 'einnahme', 'income', 'credit', 'entree', 'gutschrift'];
+
+/**
+ * Contrôle de cohérence entre le sens annoncé et le signe du montant.
+ *
+ * Le montant fait foi : c'est lui qui est comptabilisé. La colonne de sens sert
+ * de témoin, et la contradiction est signalée plutôt que corrigée — sur un
+ * export réel, ce sont des remboursements que la banque a classés en dépense.
+ */
+function directionConflict(raw: string, amountCents: number): string | null {
+  if (raw === '' || amountCents === 0) return null;
+
+  const normalized = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  const announcesExpense = EXPENSE_WORDS.some((word) => normalized.includes(word));
+  const announcesIncome = INCOME_WORDS.some((word) => normalized.includes(word));
+  if (announcesExpense === announcesIncome) return null; // ni l'un ni l'autre, ou les deux
+
+  if (announcesExpense && amountCents > 0) {
+    return `Sens contradictoire : ligne annoncée « ${raw} » avec un montant positif. Le montant fait foi.`;
+  }
+  if (announcesIncome && amountCents < 0) {
+    return `Sens contradictoire : ligne annoncée « ${raw} » avec un montant négatif. Le montant fait foi.`;
+  }
+  return null;
 }
 
 function firstNonEmptyRow(grid: readonly (readonly string[])[]): number {

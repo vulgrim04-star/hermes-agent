@@ -93,6 +93,32 @@ const SYNONYMS: Record<CanonicalField, readonly string[]> = {
     'counterparty',
     'payee',
   ],
+  // « Solde du compte » contient « compte » : c'est le rapprochement par le
+  // synonyme le plus long, à égalité de score, qui garde cette colonne sur
+  // `balance` — et l'égalité exacte, mieux notée qu'une inclusion, la protège.
+  account: [
+    'numero de compte ou de carte',
+    'no de compte ou de carte',
+    'numero de compte',
+    'no de compte',
+    'compte ou carte',
+    'kontonummer',
+    'konto nr',
+    'account number',
+    'account',
+    'iban',
+    'compte',
+    'konto',
+  ],
+  direction: [
+    'revenu ou depense',
+    'sens du mouvement',
+    'type de mouvement',
+    'einnahme oder ausgabe',
+    'income or expense',
+    'sens',
+  ],
+  externalCategory: ['categorie de la banque', 'categorie', 'kategorie', 'category'],
 };
 
 interface FieldMatch {

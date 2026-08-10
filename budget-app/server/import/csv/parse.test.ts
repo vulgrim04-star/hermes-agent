@@ -202,3 +202,90 @@ describe('contrôle du solde glissant', () => {
     expect(statement.closingBalanceCents).toBe(1663445);
   });
 });
+
+describe('export multi-comptes — le format réellement exporté par UBS', () => {
+  const result = analysed(parseCsv(load('ubs-export-multi-comptes.csv')));
+
+  it('lit le fichier sans une seule erreur', () => {
+    expect(result.issues.filter((i) => i.severity === 'erreur')).toEqual([]);
+    expect(result.rowsRead).toBe(17);
+  });
+
+  it('reconnaît les trois colonnes que le format ajoute', () => {
+    expect(result.csv?.mapping).toMatchObject({
+      account: 1,
+      direction: 3,
+      externalCategory: 6,
+    });
+  });
+
+  it('rend un relevé par compte, dans l’ordre de leur apparition', () => {
+    expect(result.statements.map((s) => s.accountKey)).toEqual([
+      'CH5604835012345678009',
+      'CARTE-7648',
+      'CARTE-1601',
+      'CH9300762011623852957',
+    ]);
+  });
+
+  it('répartit chaque écriture sur son compte', () => {
+    expect(result.statements.map((s) => s.transactions.length)).toEqual([9, 4, 2, 2]);
+  });
+
+  it('propose un libellé lisible pour une carte', () => {
+    expect(result.statements[1]!.accountLabel).toBe('Carte ****7648');
+    expect(result.statements[0]!.accountLabel).toBe('CH56 0483 5012 3456 7800 9');
+  });
+
+  it('borne la période sur les dates, pas sur l’ordre du fichier', () => {
+    // Le fichier est en ordre décroissant et ne porte aucune colonne de solde :
+    // il n'est donc pas remis dans l'ordre, et les bornes se calculent.
+    const statement = result.statements[0]!;
+    expect(statement.transactions[0]!.valueDate).toBe('2026-03-31');
+    expect(statement.openingDate).toBe('2026-03-03');
+    expect(statement.closingDate).toBe('2026-03-31');
+  });
+
+  it('ne rapproche rien faute de colonne de solde', () => {
+    expect(result.statements.every((s) => s.openingBalanceCents === null)).toBe(true);
+    expect(result.statements.every((s) => s.closingBalanceCents === null)).toBe(true);
+  });
+
+  it('conserve la catégorie livrée par la banque', () => {
+    const salaire = result.statements[0]!.transactions[0]!;
+    expect(salaire.externalCategory).toBe('Salaire et rentes');
+  });
+
+  it('signale un sens contradictoire sans écarter la ligne', () => {
+    const contradictions = result.issues.filter((i) => i.message.includes('Sens contradictoire'));
+    expect(contradictions).toHaveLength(1);
+    expect(contradictions[0]!.severity).toBe('avertissement');
+
+    const remboursement = result.statements[0]!.transactions.find((t) =>
+      t.label.startsWith('REMBOURSEMENT'),
+    );
+    // Le montant fait foi : la ligne est bien un encaissement.
+    expect(remboursement?.amountCents).toBe(6490);
+  });
+
+  it('découpe un libellé contenant une virgule sans perdre la colonne suivante', () => {
+    const loyer = result.statements[0]!.transactions.find((t) => t.label.startsWith('LOYER'));
+    expect(loyer?.label).toBe('LOYER AVRIL, RUE DE LAUSANNE 12');
+    expect(loyer?.amountCents).toBe(-189000);
+  });
+
+  it('conserve les deux lignes strictement identiques', () => {
+    const doubles = result.statements[0]!.transactions.filter((t) =>
+      t.label.includes('BULLETIN DE VERSEMENT'),
+    );
+    expect(doubles).toHaveLength(2);
+  });
+
+  it('appaire le règlement de carte entre deux relevés du même fichier', () => {
+    const debit = result.statements[0]!.transactions.find((t) => t.label.includes('REGLEMENT CARTE'));
+    const credit = result.statements[1]!.transactions.find((t) => t.label.includes('PAIEMENT FACTURE'));
+    expect(debit?.amountCents).toBe(-125000);
+    expect(credit?.amountCents).toBe(125000);
+    expect(debit?.valueDate).toBe(credit?.valueDate);
+  });
+});
