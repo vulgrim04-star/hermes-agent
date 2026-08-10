@@ -1,0 +1,16 @@
+﻿Relevé de compte;;;;;;
+Titulaire:;Ménage Exemple;;;;;
+IBAN:;CH93 0076 2011 6238 5295 7;;;;;
+Période:;01.01.2025 - 31.01.2025;;;;;
+;;;;;;
+Date de valeur;Date comptable;Description1;Description2;Débit;Crédit;Solde
+02.01.2025;02.01.2025;Paiement carte;COOP PRONTO GENÈVE;45.60;;12'404.40
+03.01.2025;03.01.2025;Ordre permanent;Loyer janvier;1'890.00;;10'514.40
+06.01.2025;06.01.2025;Virement entrant;Salaire janvier;;6'250.00;16'764.40
+08.01.2025;08.01.2025;Achat en ligne;"Digitec Galaxus, Zürich";129.95;;16'634.45
+11.01.2025;11.01.2025;Paiement carte;COOP PRONTO GENÈVE;4.50;;16'629.95
+11.01.2025;11.01.2025;Paiement carte;COOP PRONTO GENÈVE;4.50;;16'625.45
+15.01.2025;15.01.2025;Extourne frais;Frais de tenue de compte;;-12.50;16'612.95
+20.01.2025;21.01.2025;Prélèvement;Assura primes LAMal février;-742.80;;15'870.15
+;;;;;;
+Fin du relevé;;;;;;
