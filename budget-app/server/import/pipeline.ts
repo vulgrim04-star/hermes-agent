@@ -25,6 +25,7 @@ import {
   softKey,
   strictFingerprint,
 } from '../domain/fingerprint.js';
+import { applyExternalCategories } from '../domain/external-categories.js';
 import { applyRules } from '../domain/rules.js';
 import { detectTransfers } from '../domain/transfers.js';
 import { parseCsv } from './csv/parse.js';
@@ -190,9 +191,9 @@ export function prepareImport(db: Db, input: Uint8Array, options: PrepareOptions
       const insertPending = db.prepare(
         `INSERT INTO pending_transactions
            (batch_id, statement_id, sort_index, line_number, value_date, booking_date, amount_cents,
-            currency, label, counterparty, bank_reference, fingerprint, soft_key, occurrence,
-            duplicate_kind, include)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            currency, label, counterparty, bank_reference, external_category, fingerprint, soft_key,
+            occurrence, duplicate_kind, include)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
       const existingFingerprint = db.prepare('SELECT 1 FROM transactions WHERE fingerprint = ?');
       const existingSoftKey = db.prepare('SELECT 1 FROM transactions WHERE soft_key = ?');
@@ -234,6 +235,7 @@ export function prepareImport(db: Db, input: Uint8Array, options: PrepareOptions
           transaction.label,
           transaction.counterparty,
           transaction.bankReference,
+          transaction.externalCategory,
           fingerprint,
           soft,
           strictRanks[index]!,
@@ -409,6 +411,8 @@ export interface ValidationSuccess {
   imported: number;
   /** Écritures catégorisées d'office par les règles au moment de la validation. */
   categorised: number;
+  /** Écritures classées ensuite par la correspondance des catégories de la banque. */
+  categorisedByBank: number;
   /** Paires de transfert interne proposées à l'arbitrage après cet import. */
   transfersProposed: number;
 }
@@ -434,7 +438,7 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
     | undefined;
   if (batch === undefined) throw new Error(`Lot introuvable : ${batchId}`);
   if (batch.status === 'valide') {
-    return { kind: 'valide', imported: 0, categorised: 0, transfersProposed: 0 };
+    return { kind: 'valide', imported: 0, categorised: 0, categorisedByBank: 0, transfersProposed: 0 };
   }
 
   const [status, gap] = aggregateReconciliation(db, batchId);
@@ -465,6 +469,7 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
       label: string;
       counterparty: string | null;
       bank_reference: string | null;
+      external_category: string | null;
       fingerprint: string;
       soft_key: string;
       occurrence: number;
@@ -473,8 +478,9 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
     const insert = db.prepare(
       `INSERT INTO transactions
          (batch_id, account_id, value_date, booking_date, amount_cents, currency, label,
-          label_normalized, counterparty, bank_reference, owner, source, fingerprint, soft_key, occurrence)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          label_normalized, counterparty, bank_reference, external_category, owner, source,
+          fingerprint, soft_key, occurrence)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT default_owner FROM accounts WHERE id = ?), ?, ?, ?, ?)`,
     );
 
@@ -492,6 +498,7 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
         normalizeLabel(pending.label),
         pending.counterparty,
         pending.bank_reference,
+        pending.external_category,
         pending.account_id,
         batch.format,
         pending.fingerprint,
@@ -514,11 +521,20 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
     // Les règles s'appliquent aux seules écritures que ce lot vient d'insérer :
     // un import validé arrive déjà catégorisé, et le reste de la base ne bouge pas.
     const categorised = applyRules(db, insertedIds).updated;
+    // Puis la correspondance de la banque, sur ce que les règles ont laissé :
+    // ce que l'utilisateur a écrit prime sur ce que la banque propose.
+    const fromBank = applyExternalCategories(db, insertedIds);
     // Un virement entre deux comptes du ménage n'apparaît en double que lorsque
     // le second relevé arrive — c'est donc ici qu'il faut regarder.
     const transfers = detectTransfers(db).length;
 
-    return { kind: 'valide', imported, categorised, transfersProposed: transfers };
+    return {
+      kind: 'valide',
+      imported,
+      categorised,
+      categorisedByBank: fromBank.categorised,
+      transfersProposed: transfers,
+    };
   })();
 }
 

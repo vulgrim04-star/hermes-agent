@@ -216,6 +216,13 @@ export function ReviewPage() {
                             {transaction.counterparty}
                           </span>
                         )}
+                        {transaction.external_category !== null && (
+                          // Ce qu'en disait la banque : une indication de plus
+                          // pour trancher, sans valeur de décision.
+                          <span className="block text-xs text-slate-400">
+                            banque : {transaction.external_category}
+                          </span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap text-slate-500">
                         {transaction.account_label}

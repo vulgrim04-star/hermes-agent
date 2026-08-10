@@ -106,7 +106,22 @@ export interface ReviewTransaction {
   counterparty: string | null;
   owner: Owner;
   source: string;
+  /** Ce qu'en disait la banque : une indication, pas une décision. */
+  external_category: string | null;
   account_label: string;
+}
+
+export interface ExternalCategoryRow {
+  id: number | null;
+  source: string;
+  external_label: string;
+  external_normalized: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_parent_name: string | null;
+  treat_as: 'categorie' | 'transfert-interne' | 'ignorer';
+  transaction_count: number;
+  uncategorised_count: number;
 }
 
 export interface TransferPairRow {

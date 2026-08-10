@@ -17,7 +17,7 @@ review.get('/', (context) => {
   const transactions = db
     .prepare(
       `SELECT t.id, t.value_date, t.booking_date, t.amount_cents, t.currency, t.label,
-              t.counterparty, t.owner, t.source, a.label AS account_label
+              t.counterparty, t.owner, t.source, t.external_category, a.label AS account_label
          FROM transactions t
          JOIN accounts a ON a.id = t.account_id
         WHERE t.category_id IS NULL

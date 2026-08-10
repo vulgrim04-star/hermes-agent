@@ -1,12 +1,14 @@
 import { useState } from 'react';
 
 import { AccountsPage } from './AccountsPage.js';
+import { BankCategoriesPage } from './BankCategoriesPage.js';
 import { BatchesPage } from './BatchesPage.js';
 import { RulesPage } from './RulesPage.js';
 
 const TABS = [
   { key: 'comptes', label: 'Comptes & ménage' },
   { key: 'regles', label: 'Règles' },
+  { key: 'banque', label: 'Catégories de la banque' },
   { key: 'lots', label: "Lots d'import" },
 ] as const;
 
@@ -37,6 +39,7 @@ export function SettingsPage() {
 
       {tab === 'comptes' && <AccountsPage />}
       {tab === 'regles' && <RulesPage />}
+      {tab === 'banque' && <BankCategoriesPage />}
       {tab === 'lots' && <BatchesPage />}
     </div>
   );
