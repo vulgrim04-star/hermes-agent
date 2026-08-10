@@ -202,6 +202,29 @@ export interface MonthlyDashboard {
   }[];
 }
 
+export interface AnnualCategoryLine {
+  categoryId: number;
+  name: string;
+  parentId: number | null;
+  kind: CategoryKind;
+  /** Douze valeurs, dans le sens naturel du type de mouvement. */
+  monthlyCents: number[];
+  totalCents: number;
+  averageCents: number;
+}
+
+export interface AnnualDashboard {
+  year: number;
+  availableYears: number[];
+  months: { month: string; totals: DashboardTotals }[];
+  totals: DashboardTotals;
+  averages: DashboardTotals;
+  categories: AnnualCategoryLine[];
+  previous: { year: number; totals: DashboardTotals } | null;
+  monthsWithEntries: number;
+  uncategorised: { count: number; amountCents: number };
+}
+
 export interface Transaction {
   id: number;
   account_id: number;
