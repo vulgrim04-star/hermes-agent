@@ -271,7 +271,7 @@ export function prepareImport(db: Db, input: Uint8Array, options: PrepareOptions
 }
 
 /** Synthèse des relevés d'un lot : un seul écart suffit à mettre le lot en échec. */
-function aggregateReconciliation(db: Db, batchId: number): ['ok' | 'ko' | 'absent', number | null] {
+export function aggregateReconciliation(db: Db, batchId: number): ['ok' | 'ko' | 'absent', number | null] {
   const rows = db
     .prepare('SELECT status, gap_cents FROM import_statements WHERE batch_id = ?')
     .all(batchId) as { status: string; gap_cents: number | null }[];
@@ -577,5 +577,14 @@ export function getBatchReport(db: Db, batchId: number): Record<string, unknown>
     blocking.push(`${String(batch.rows_error)} ligne(s) n'ont pas pu être lues.`);
   }
 
-  return { batch, statements, rows, issues, blocking };
+  // Un relevé sans solde n'est pas une erreur, mais il ne doit pas passer
+  // inaperçu : le contrôle qui prouve qu'il est complet n'a pas pu s'exécuter.
+  const notices = (statements as { account_label: string | null; status: string }[])
+    .filter((statement) => statement.status === 'absent')
+    .map(
+      (statement) =>
+        `${statement.account_label ?? 'Relevé'} : sans solde à rapprocher. Saisissez les soldes d’ouverture et de clôture pour que le contrôle s’exécute.`,
+    );
+
+  return { batch, statements, rows, issues, blocking, notices };
 }

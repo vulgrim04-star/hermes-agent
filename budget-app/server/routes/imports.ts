@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 
 import { getDatabase } from '../db/connection.js';
+import { setStatementBalances, suggestedOpening } from '../domain/statement-balances.js';
 import {
+  aggregateReconciliation,
   deleteBatch,
   getBatchReport,
   prepareImport,
@@ -79,6 +81,50 @@ imports.post('/:id/validate', async (context) => {
   return outcome.kind === 'bloque' ? context.json(outcome, 409) : context.json(outcome);
 });
 
+/**
+ * Saisie des soldes d'un relevé que le fichier ne portait pas.
+ *
+ * Le lot est réévalué dans la foulée : renseigner les deux soldes peut faire
+ * passer un lot de « sans solde à rapprocher » à bloquant, ce qui est
+ * exactement l'effet recherché.
+ */
+imports.patch('/statements/:statementId', async (context) => {
+  const body = (await context.req.json().catch(() => ({}))) as {
+    openingCents?: number | null;
+    closingCents?: number | null;
+  };
+
+  const db = getDatabase();
+  const statementId = Number(context.req.param('statementId'));
+  const outcome = setStatementBalances(db, statementId, {
+    openingCents: centsOrNull(body.openingCents),
+    closingCents: centsOrNull(body.closingCents),
+  });
+
+  if (outcome.kind === 'introuvable') return context.json({ message: 'Relevé introuvable.' }, 404);
+  if (outcome.kind === 'lot-valide') {
+    return context.json({ message: 'Ce lot est déjà validé : ses soldes ne se modifient plus.' }, 409);
+  }
+
+  const batchId = (
+    db.prepare('SELECT batch_id FROM import_statements WHERE id = ?').get(statementId) as {
+      batch_id: number;
+    }
+  ).batch_id;
+  const [status, gap] = aggregateReconciliation(db, batchId);
+  db.prepare(
+    'UPDATE import_batches SET reconciliation_status = ?, reconciliation_gap_cents = ? WHERE id = ?',
+  ).run(status, gap, batchId);
+
+  return context.json({ ...outcome, report: getBatchReport(db, batchId) });
+});
+
+/** Solde d'ouverture proposé : dernière clôture connue du compte. */
+imports.get('/statements/:statementId/ouverture-proposee', (context) => {
+  const cents = suggestedOpening(getDatabase(), Number(context.req.param('statementId')));
+  return context.json({ openingCents: cents });
+});
+
 imports.patch('/pending/:pendingId', async (context) => {
   const body = (await context.req.json()) as { include?: boolean };
   const updated = setPendingInclusion(
@@ -100,6 +146,11 @@ function numberOrUndefined(value: unknown): number | undefined {
   if (typeof value !== 'string' || value === '') return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Un solde absent est `null`, pas 0 : la nuance est tout le sujet. */
+function centsOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
 }
 
 function decimalSeparatorOf(value: unknown): '.' | ',' | 'auto' | undefined {

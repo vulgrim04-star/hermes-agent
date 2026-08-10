@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { formatSwissDate } from '../../shared/dates.js';
-import { apiSend } from '../lib/api.js';
-import type { BatchReport, PendingTransaction } from '../lib/api.js';
+import { parseAmountToCents } from '../../shared/money.js';
+import { apiGet, apiSend } from '../lib/api.js';
+import type { BatchReport, ImportStatement, PendingTransaction } from '../lib/api.js';
 import { RECONCILIATION_LABELS } from '../lib/labels.js';
-import { Amount, Badge, Button, Card } from './ui.js';
+import { Amount, Badge, Button, Card, inputClass } from './ui.js';
 
 const PREVIEW_ROWS = 10;
 
@@ -28,7 +29,7 @@ export function BatchDiagnostics({
   const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { batch, statements, rows, issues, blocking } = report;
+  const { batch, statements, rows, issues, blocking, notices } = report;
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['batch', batch.id] });
@@ -122,7 +123,24 @@ export function BatchDiagnostics({
         </div>
       </Card>
 
-      <Card title="Relevés et rapprochement">
+      <Card
+        title="Relevés et rapprochement"
+        description={
+          statements.length > 1
+            ? `Ce fichier porte ${statements.length} comptes. Chacun est rapproché séparément.`
+            : undefined
+        }
+      >
+        {notices.length > 0 && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <ul className="list-inside list-disc">
+              {notices.map((notice) => (
+                <li key={notice}>{notice}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -137,43 +155,12 @@ export function BatchDiagnostics({
           </thead>
           <tbody>
             {statements.map((statement) => (
-              <tr key={statement.id} className="border-t border-slate-100">
-                <td className="py-2">{statement.reference ?? '—'}</td>
-                <td className="text-slate-500">{statement.account_label ?? '—'}</td>
-                <td className="whitespace-nowrap text-slate-500">
-                  {statement.opening_date === null ? '—' : formatSwissDate(statement.opening_date)}
-                  {' → '}
-                  {statement.closing_date === null ? '—' : formatSwissDate(statement.closing_date)}
-                </td>
-                <td className="text-right">
-                  {statement.opening_balance_cents === null ? (
-                    '—'
-                  ) : (
-                    <Amount cents={statement.opening_balance_cents} />
-                  )}
-                </td>
-                <td className="text-right">
-                  <Amount cents={statement.movements_cents} />
-                </td>
-                <td className="text-right">
-                  {statement.closing_balance_cents === null ? (
-                    '—'
-                  ) : (
-                    <Amount cents={statement.closing_balance_cents} />
-                  )}
-                </td>
-                <td className="text-right">
-                  {statement.status === 'ok' ? (
-                    <Badge tone="ok">bouclé</Badge>
-                  ) : statement.status === 'absent' ? (
-                    <Badge>sans solde</Badge>
-                  ) : (
-                    <Badge tone="error">
-                      <Amount cents={statement.gap_cents ?? 0} />
-                    </Badge>
-                  )}
-                </td>
-              </tr>
+              <StatementRow
+                key={statement.id}
+                statement={statement}
+                editable={batch.status === 'brouillon'}
+                onSaved={refresh}
+              />
             ))}
           </tbody>
         </table>
@@ -243,6 +230,141 @@ export function BatchDiagnostics({
       )}
     </div>
   );
+}
+
+/**
+ * Une ligne de relevé, avec saisie des soldes quand le fichier n'en portait pas.
+ *
+ * Le contrôle de rapprochement est ce qui prouve qu'un relevé est complet ;
+ * l'export CSV d'UBS ne porte pas de solde, et sans saisie ce contrôle
+ * n'existerait tout simplement pas pour la moitié des imports.
+ */
+function StatementRow({
+  statement,
+  editable,
+  onSaved,
+}: {
+  statement: ImportStatement;
+  editable: boolean;
+  onSaved: () => void;
+}) {
+  const entering = editable && (statement.status === 'absent' || statement.balance_source === 'saisi');
+  const [opening, setOpening] = useState(centsToInput(statement.opening_balance_cents));
+  const [closing, setClosing] = useState(centsToInput(statement.closing_balance_cents));
+  const [error, setError] = useState<string | null>(null);
+
+  // Solde à nouveau : la clôture du relevé précédent du même compte. Il ne se
+  // saisit donc qu'à la première importation d'un compte.
+  const suggestion = useQuery({
+    queryKey: ['statement-opening', statement.id],
+    queryFn: () =>
+      apiGet<{ openingCents: number | null }>(`/imports/statements/${statement.id}/ouverture-proposee`),
+    enabled: entering && statement.opening_balance_cents === null,
+  });
+
+  useEffect(() => {
+    const proposed = suggestion.data?.openingCents;
+    if (proposed !== undefined && proposed !== null && opening === '') {
+      setOpening(centsToInput(proposed));
+    }
+  }, [suggestion.data, opening]);
+
+  const save = useMutation({
+    mutationFn: () => {
+      const parsedOpening = inputToCents(opening);
+      const parsedClosing = inputToCents(closing);
+      if (parsedOpening === 'illisible' || parsedClosing === 'illisible') {
+        throw new Error('Montant illisible : attendu 12’450.80 ou 12450.80.');
+      }
+      return apiSend(`/imports/statements/${statement.id}`, 'PATCH', {
+        openingCents: parsedOpening,
+        closingCents: parsedClosing,
+      });
+    },
+    onSuccess: () => {
+      setError(null);
+      onSaved();
+    },
+    onError: (cause: Error) => setError(cause.message),
+  });
+
+  return (
+    <tr className="border-t border-slate-100 align-top">
+      <td className="py-2">{statement.reference ?? '—'}</td>
+      <td className="text-slate-500">{statement.account_label ?? '—'}</td>
+      <td className="whitespace-nowrap text-slate-500">
+        {statement.opening_date === null ? '—' : formatSwissDate(statement.opening_date)}
+        {' → '}
+        {statement.closing_date === null ? '—' : formatSwissDate(statement.closing_date)}
+      </td>
+      <td className="text-right">
+        {entering ? (
+          <input
+            className={`${inputClass} w-32 text-right`}
+            inputMode="decimal"
+            placeholder="ouverture"
+            value={opening}
+            onChange={(event) => setOpening(event.target.value)}
+          />
+        ) : statement.opening_balance_cents === null ? (
+          '—'
+        ) : (
+          <Amount cents={statement.opening_balance_cents} />
+        )}
+      </td>
+      <td className="whitespace-nowrap text-right">
+        <Amount cents={statement.movements_cents} />
+      </td>
+      <td className="text-right">
+        {entering ? (
+          <input
+            className={`${inputClass} w-32 text-right`}
+            inputMode="decimal"
+            placeholder="clôture"
+            value={closing}
+            onChange={(event) => setClosing(event.target.value)}
+          />
+        ) : statement.closing_balance_cents === null ? (
+          '—'
+        ) : (
+          <Amount cents={statement.closing_balance_cents} />
+        )}
+      </td>
+      <td className="whitespace-nowrap text-right">
+        {statement.status === 'ok' ? (
+          <Badge tone="ok">bouclé</Badge>
+        ) : statement.status === 'absent' ? (
+          <Badge>sans solde</Badge>
+        ) : (
+          <Badge tone="error">
+            <Amount cents={statement.gap_cents ?? 0} />
+          </Badge>
+        )}
+        {entering && (
+          <span className="ml-2 inline-block">
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              Contrôler
+            </Button>
+          </span>
+        )}
+        {error !== null && <span className="mt-1 block text-xs text-red-700">{error}</span>}
+        {statement.balance_source === 'saisi' && statement.status !== 'absent' && (
+          <span className="mt-1 block text-xs text-slate-400">soldes saisis</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function centsToInput(cents: number | null): string {
+  return cents === null ? '' : (cents / 100).toFixed(2);
+}
+
+/** `null` pour un champ vide — un solde absent n'est pas un solde à zéro. */
+function inputToCents(raw: string): number | null | 'illisible' {
+  if (raw.trim() === '') return null;
+  const parsed = parseAmountToCents(raw);
+  return parsed === null ? 'illisible' : parsed;
 }
 
 function PendingRow({

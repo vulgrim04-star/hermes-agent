@@ -246,6 +246,8 @@ export interface ImportStatement {
   movements_cents: number;
   gap_cents: number | null;
   status: 'ok' | 'ko' | 'absent';
+  /** `fichier` : solde lu dans l'export. `saisi` : solde déclaré par l'utilisateur. */
+  balance_source: 'fichier' | 'saisi';
 }
 
 export interface PendingTransaction {
@@ -277,6 +279,8 @@ export interface BatchReport {
   rows: PendingTransaction[];
   issues: ImportIssue[];
   blocking: string[];
+  /** Ce qui mérite d'être vu sans pour autant empêcher de valider. */
+  notices: string[];
 }
 
 export type CanonicalField =
