@@ -1,0 +1,6 @@
+# La base est ignorée par le .gitignore racine (motif `data/`), rappelé ici
+# pour que le dossier reste autonome s'il est extrait du dépôt.
+data/
+dist/
+node_modules/
+*.local
