@@ -15,6 +15,7 @@ import { accounts } from './routes/accounts.js';
 import { budgets } from './routes/budgets.js';
 import { categories } from './routes/categories.js';
 import { dashboard } from './routes/dashboard.js';
+import { backups, exports_ } from './routes/exports.js';
 import { externalCategories } from './routes/external-categories.js';
 import { imports } from './routes/imports.js';
 import { networth } from './routes/networth.js';
@@ -59,6 +60,8 @@ app.route('/api/budgets', budgets);
 app.route('/api/tableau-de-bord', dashboard);
 app.route('/api/categories-banque', externalCategories);
 app.route('/api/patrimoine', networth);
+app.route('/api/export', exports_);
+app.route('/api/sauvegardes', backups);
 
 app.onError((error, context) => {
   console.error('[api]', error);

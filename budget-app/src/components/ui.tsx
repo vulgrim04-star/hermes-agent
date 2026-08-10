@@ -31,24 +31,40 @@ export function Card({
   );
 }
 
+type Variant = 'default' | 'primary' | 'danger' | 'ghost';
+
+const VARIANTS: Record<Variant, string> = {
+  default: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+  primary: 'bg-slate-900 text-white hover:bg-slate-700',
+  danger: 'border border-red-300 bg-white text-red-700 hover:bg-red-50',
+  ghost: 'text-slate-500 hover:bg-slate-100',
+};
+
+const CONTROL =
+  'inline-block rounded-md px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50';
+
 export function Button({
   variant = 'default',
   className = '',
   ...props
-}: React.ComponentProps<'button'> & { variant?: 'default' | 'primary' | 'danger' | 'ghost' }) {
-  const styles: Record<string, string> = {
-    default: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-    primary: 'bg-slate-900 text-white hover:bg-slate-700',
-    danger: 'border border-red-300 bg-white text-red-700 hover:bg-red-50',
-    ghost: 'text-slate-500 hover:bg-slate-100',
-  };
+}: React.ComponentProps<'button'> & { variant?: Variant }) {
   return (
-    <button
-      type="button"
-      {...props}
-      className={`rounded-md px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
-    />
+    <button type="button" {...props} className={`${CONTROL} ${VARIANTS[variant]} ${className}`} />
   );
+}
+
+/**
+ * Lien de téléchargement présenté comme un bouton.
+ *
+ * Un `<button>` glissé dans un `<a>` est du HTML invalide, et le téléchargement
+ * n'y est alors pas garanti : c'est l'ancre elle-même qui porte le style.
+ */
+export function DownloadLink({
+  variant = 'default',
+  className = '',
+  ...props
+}: React.ComponentProps<'a'> & { variant?: Variant }) {
+  return <a download {...props} className={`${CONTROL} ${VARIANTS[variant]} ${className}`} />;
 }
 
 export function Field({

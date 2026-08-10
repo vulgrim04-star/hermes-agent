@@ -1,6 +1,14 @@
 # La base est ignorée par le .gitignore racine (motif `data/`), rappelé ici
 # pour que le dossier reste autonome s'il est extrait du dépôt.
 data/
+# Les sauvegardes sont des copies complètes de la base : mêmes données
+# bancaires, même exigence — elles ne sortent pas de la machine par le dépôt.
+sauvegardes/
 dist/
 node_modules/
 *.local
+
+# Le dépôt hôte ignore `export*` à sa racine (scripts d'un autre projet) : les
+# fichiers d'export du budget doivent échapper à cette règle, sans quoi ils ne
+# sont jamais proposés au commit, et sans un mot.
+!export*

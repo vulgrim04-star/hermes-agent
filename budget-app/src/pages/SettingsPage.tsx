@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { AccountsPage } from './AccountsPage.js';
 import { BankCategoriesPage } from './BankCategoriesPage.js';
 import { BatchesPage } from './BatchesPage.js';
+import { ExportPage } from './ExportPage.js';
 import { RulesPage } from './RulesPage.js';
 
 const TABS = [
@@ -10,6 +11,7 @@ const TABS = [
   { key: 'regles', label: 'Règles' },
   { key: 'banque', label: 'Catégories de la banque' },
   { key: 'lots', label: "Lots d'import" },
+  { key: 'export', label: 'Export & sauvegarde' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -41,6 +43,7 @@ export function SettingsPage() {
       {tab === 'regles' && <RulesPage />}
       {tab === 'banque' && <BankCategoriesPage />}
       {tab === 'lots' && <BatchesPage />}
+      {tab === 'export' && <ExportPage />}
     </div>
   );
 }

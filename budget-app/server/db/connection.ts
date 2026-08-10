@@ -38,3 +38,14 @@ export function getDatabase(): Db {
   singleton ??= openDatabase();
   return singleton;
 }
+
+/**
+ * Referme la connexion partagée.
+ *
+ * Nécessaire avant de remplacer le fichier de base lors d'une restauration :
+ * la connexion suivante rouvrira le nouveau fichier, journaux WAL compris.
+ */
+export function closeDatabase(): void {
+  singleton?.close();
+  singleton = null;
+}

@@ -390,3 +390,11 @@ export interface MappingRequired {
   suggestion: Record<string, number | number[]>;
   missing: string[];
 }
+
+/** Fichier de sauvegarde présent dans le dossier `sauvegardes/`. */
+export interface BackupFile {
+  name: string;
+  path: string;
+  sizeBytes: number;
+  createdAt: string;
+}
