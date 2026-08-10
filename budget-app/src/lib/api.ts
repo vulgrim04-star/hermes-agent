@@ -34,7 +34,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 
 export async function apiSend<T>(
   path: string,
-  method: 'POST' | 'PATCH' | 'DELETE',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: unknown,
 ): Promise<T> {
   return unwrap<T>(
@@ -57,7 +57,8 @@ export async function apiUpload(
 
 // ------------------------------------------------------------------ Modèles
 
-export type Owner = 'p1' | 'p2' | 'commun';
+export type { Owner, CategoryKind } from '../../shared/model.js';
+import type { CategoryKind, Owner } from '../../shared/model.js';
 
 export interface Account {
   id: number;
@@ -74,7 +75,116 @@ export interface Category {
   parent_id: number | null;
   parent_name: string | null;
   name: string;
-  kind: 'revenu' | 'depense' | 'epargne';
+  kind: CategoryKind;
+}
+
+// ------------------------------------------ Catégorisation, budgets, révision
+
+export interface CategoryRuleRow {
+  id: number;
+  pattern: string;
+  match_type: 'contient' | 'regex';
+  category_id: number | null;
+  category_name: string | null;
+  category_parent_name: string | null;
+  owner: Owner | null;
+  direction: 'tout' | 'debit' | 'credit';
+  account_id: number | null;
+  account_label: string | null;
+  priority: number;
+  is_active: number;
+  hits: number;
+}
+
+export interface ReviewTransaction {
+  id: number;
+  value_date: string;
+  booking_date: string | null;
+  amount_cents: number;
+  currency: string;
+  label: string;
+  counterparty: string | null;
+  owner: Owner;
+  source: string;
+  account_label: string;
+}
+
+export interface TransferPairRow {
+  id: number;
+  day_gap: number;
+  out_id: number;
+  out_date: string;
+  out_label: string;
+  out_amount: number;
+  out_account: string;
+  in_id: number;
+  in_date: string;
+  in_label: string;
+  in_amount: number;
+  in_account: string;
+}
+
+export interface ReviewQueue {
+  transactions: ReviewTransaction[];
+  frequent: { id: number; name: string; parent_name: string | null; uses: number }[];
+  transfers: TransferPairRow[];
+}
+
+export interface SplitRow {
+  id: number;
+  transaction_id: number;
+  category_id: number | null;
+  category_name: string | null;
+  category_parent_name: string | null;
+  amount_cents: number;
+  owner: Owner | null;
+  note: string | null;
+}
+
+export interface BudgetRow {
+  category_id: number;
+  name: string;
+  parent_id: number | null;
+  parent_name: string | null;
+  kind: CategoryKind;
+  default_cents: number | null;
+  override_cents: number | null;
+}
+
+export interface DashboardTotals {
+  incomeCents: number;
+  expenseCents: number;
+  savingsCents: number;
+  remainingCents: number;
+  savingsRate: number | null;
+}
+
+export interface DashboardBudgetLine {
+  categoryId: number | null;
+  name: string;
+  parentId: number | null;
+  kind: CategoryKind;
+  actualCents: number;
+  budgetCents: number | null;
+  gapCents: number | null;
+  ratio: number | null;
+}
+
+export interface MonthlyDashboard {
+  month: string;
+  availableMonths: string[];
+  totals: DashboardTotals;
+  previous: { month: string | null; totals: DashboardTotals };
+  uncategorised: { count: number; amountCents: number };
+  budgetLines: DashboardBudgetLine[];
+  expenseBreakdown: { categoryId: number | null; name: string; amountCents: number; share: number }[];
+  topExpenses: {
+    transactionId: number;
+    valueDate: string;
+    label: string;
+    categoryName: string | null;
+    amountCents: number;
+  }[];
 }
 
 export interface Transaction {

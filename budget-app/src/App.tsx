@@ -1,15 +1,19 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
-import { AccountsPage } from './pages/AccountsPage.js';
-import { BatchesPage } from './pages/BatchesPage.js';
+import { BudgetsPage } from './pages/BudgetsPage.js';
+import { DashboardPage } from './pages/DashboardPage.js';
 import { ImportPage } from './pages/ImportPage.js';
+import { ReviewPage } from './pages/ReviewPage.js';
+import { SettingsPage } from './pages/SettingsPage.js';
 import { TransactionsPage } from './pages/TransactionsPage.js';
 
 const NAVIGATION = [
+  { to: '/tableau-de-bord', label: 'Tableau de bord' },
   { to: '/transactions', label: 'Écritures' },
+  { to: '/revision', label: 'Révision' },
+  { to: '/budgets', label: 'Budgets' },
   { to: '/import', label: 'Import' },
-  { to: '/lots', label: "Lots d'import" },
-  { to: '/comptes', label: 'Comptes' },
+  { to: '/reglages', label: 'Réglages' },
 ];
 
 export function App() {
@@ -39,11 +43,16 @@ export function App() {
 
       <main className="mx-auto max-w-7xl px-6 py-8">
         <Routes>
-          <Route path="/" element={<Navigate to="/transactions" replace />} />
+          <Route path="/" element={<Navigate to="/tableau-de-bord" replace />} />
+          <Route path="/tableau-de-bord" element={<DashboardPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
+          <Route path="/revision" element={<ReviewPage />} />
+          <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/import" element={<ImportPage />} />
-          <Route path="/lots" element={<BatchesPage />} />
-          <Route path="/comptes" element={<AccountsPage />} />
+          <Route path="/reglages" element={<SettingsPage />} />
+          {/* Anciennes adresses, conservées pour les signets. */}
+          <Route path="/lots" element={<Navigate to="/reglages" replace />} />
+          <Route path="/comptes" element={<Navigate to="/reglages" replace />} />
         </Routes>
       </main>
     </div>
