@@ -2,8 +2,11 @@ import { Hono } from 'hono';
 
 import { parseSwissDate } from '../../shared/dates.js';
 import { parseAmountToCents } from '../../shared/money.js';
+import { isOwner } from '../../shared/model.js';
 import { getDatabase } from '../db/connection.js';
 import { normalizeLabel, softKey, strictFingerprint } from '../domain/fingerprint.js';
+import { getSplits, replaceSplits } from '../domain/splits.js';
+import type { SplitInput } from '../domain/splits.js';
 
 export const transactions = new Hono();
 
@@ -202,6 +205,41 @@ transactions.patch('/:id', async (context) => {
   );
 
   return context.json({ ok: true });
+});
+
+transactions.get('/:id/decoupage', (context) =>
+  context.json(getSplits(getDatabase(), Number(context.req.param('id')))),
+);
+
+/**
+ * Remplace la ventilation d'une écriture. Le contrôle du bouclage est fait
+ * côté serveur : une ventilation qui ne boucle pas est refusée avec son
+ * reliquat, pour que l'écran puisse le montrer.
+ */
+transactions.put('/:id/decoupage', async (context) => {
+  const body = (await context.req.json()) as {
+    splits?: { categoryId?: number | null; amount?: string; amountCents?: number; owner?: string | null; note?: string | null }[];
+  };
+
+  const splits: SplitInput[] = [];
+  for (const entry of body.splits ?? []) {
+    const amountCents =
+      entry.amountCents ?? (entry.amount === undefined ? null : parseAmountToCents(entry.amount));
+    if (amountCents === null) {
+      return context.json({ message: `Montant de découpe illisible : « ${entry.amount ?? ''} ».` }, 400);
+    }
+    splits.push({
+      categoryId: entry.categoryId ?? null,
+      amountCents,
+      owner: isOwner(entry.owner) ? entry.owner : null,
+      note: entry.note ?? null,
+    });
+  }
+
+  const outcome = replaceSplits(getDatabase(), Number(context.req.param('id')), splits);
+  if (outcome.kind === 'introuvable') return context.json({ message: 'Écriture introuvable.' }, 404);
+  if (outcome.kind === 'refuse') return context.json(outcome, 400);
+  return context.json(outcome);
 });
 
 transactions.delete('/:id', (context) => {

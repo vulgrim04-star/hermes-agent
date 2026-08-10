@@ -12,8 +12,12 @@ import { Hono } from 'hono';
 import { API_PORT } from '../shared/ports.js';
 import { DATABASE_FILE, getDatabase } from './db/connection.js';
 import { accounts } from './routes/accounts.js';
+import { budgets } from './routes/budgets.js';
 import { categories } from './routes/categories.js';
+import { dashboard } from './routes/dashboard.js';
 import { imports } from './routes/imports.js';
+import { review } from './routes/review.js';
+import { rules } from './routes/rules.js';
 import { transactions } from './routes/transactions.js';
 
 const app = new Hono();
@@ -47,6 +51,10 @@ app.route('/api/comptes', accounts);
 app.route('/api/categories', categories);
 app.route('/api/transactions', transactions);
 app.route('/api/imports', imports);
+app.route('/api/regles', rules);
+app.route('/api/revision', review);
+app.route('/api/budgets', budgets);
+app.route('/api/tableau-de-bord', dashboard);
 
 app.onError((error, context) => {
   console.error('[api]', error);

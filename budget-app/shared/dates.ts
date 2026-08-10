@@ -98,6 +98,23 @@ export function parseMt940EntryDate(raw: string, valueDateIso: string): string |
   return toIso(year, entryMonth, entryDay);
 }
 
+/** Mois précédent au format `AAAA-MM`, `null` si l'entrée n'en est pas un. */
+export function previousMonth(yearMonth: string): string | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (match === null) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  return month === 1
+    ? `${year - 1}-12`
+    : `${match[1]}-${String(month - 1).padStart(2, '0')}`;
+}
+
+/** `2025-01-15` → `2025-01`. */
+export function monthOf(iso: string): string {
+  return iso.slice(0, 7);
+}
+
 /** Premier et dernier jour du mois `AAAA-MM`, bornes incluses. */
 export function monthBounds(yearMonth: string): { start: string; end: string } | null {
   const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);

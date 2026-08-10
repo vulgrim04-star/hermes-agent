@@ -75,7 +75,7 @@ describe('import d’un CSV puis validation', () => {
 
   it('bascule les écritures en comptabilité à la validation', () => {
     const batchId = prepare('ubs-fr-point-virgule.csv');
-    expect(validateBatch(db, batchId)).toEqual({ kind: 'valide', imported: 8 });
+    expect(validateBatch(db, batchId)).toMatchObject({ kind: 'valide', imported: 8 });
     expect(transactionCount()).toBe(8);
     expect(batchRow(batchId)).toMatchObject({ status: 'valide', rows_imported: 8, forced: 0 });
     expect(
@@ -102,7 +102,7 @@ describe('réimport du même fichier', () => {
     const secondBatch = prepare('ubs-fr-point-virgule.csv');
     expect(batchRow(secondBatch)).toMatchObject({ rows_read: 8, rows_duplicate: 8 });
 
-    expect(validateBatch(db, secondBatch)).toEqual({ kind: 'valide', imported: 0 });
+    expect(validateBatch(db, secondBatch)).toMatchObject({ kind: 'valide', imported: 0 });
     expect(transactionCount()).toBe(8);
   });
 
@@ -131,7 +131,7 @@ describe('même période importée en CSV puis en MT940', () => {
     // diffère, seule la clé souple rapproche les deux lectures.
     expect(rows.filter((row) => row.duplicate_kind === 'probable').length).toBeGreaterThan(0);
 
-    expect(validateBatch(db, mt940Batch)).toEqual({ kind: 'valide', imported: 0 });
+    expect(validateBatch(db, mt940Batch)).toMatchObject({ kind: 'valide', imported: 0 });
     expect(transactionCount()).toBe(8);
   });
 
@@ -144,7 +144,7 @@ describe('même période importée en CSV puis en MT940', () => {
     ).find((row) => row.duplicate_kind === 'probable')!;
     expect(setPendingInclusion(db, first.id, true)).toBe(true);
 
-    expect(validateBatch(db, mt940Batch)).toEqual({ kind: 'valide', imported: 1 });
+    expect(validateBatch(db, mt940Batch)).toMatchObject({ kind: 'valide', imported: 1 });
     expect(transactionCount()).toBe(9);
   });
 });
@@ -166,7 +166,7 @@ describe('contrôles bloquants', () => {
 
   it('garde la trace du forçage et l’écart constaté', () => {
     const batchId = prepare('mt940-solde-faux.sta');
-    expect(validateBatch(db, batchId, true)).toEqual({ kind: 'valide', imported: 2 });
+    expect(validateBatch(db, batchId, true)).toMatchObject({ kind: 'valide', imported: 2 });
     expect(batchRow(batchId)).toMatchObject({
       status: 'valide',
       forced: 1,
@@ -200,7 +200,7 @@ describe('fichier sans IBAN', () => {
     );
 
     const batchId = prepare('ubs-de-virgule-1252.csv', { accountId });
-    expect(validateBatch(db, batchId)).toEqual({ kind: 'valide', imported: 3 });
+    expect(validateBatch(db, batchId)).toMatchObject({ kind: 'valide', imported: 3 });
     expect(
       (db.prepare('SELECT COUNT(*) AS n FROM transactions WHERE account_id = ?').get(accountId) as {
         n: number;
@@ -227,7 +227,7 @@ describe('mapping manuel et profil mémorisé', () => {
     );
 
     const first = prepare('format-inconnu.csv', { accountId, mapping, headerLine: 0, delimiter: '|' });
-    expect(validateBatch(db, first)).toEqual({ kind: 'valide', imported: 2 });
+    expect(validateBatch(db, first)).toMatchObject({ kind: 'valide', imported: 2 });
 
     // Deuxième passage sans mapping ni séparateur : le profil doit suffire.
     const second = prepare('format-inconnu.csv', { accountId });
@@ -262,6 +262,6 @@ describe('suppression d’un lot', () => {
 
     const again = prepare('ubs-fr-point-virgule.csv');
     expect(batchRow(again).rows_duplicate).toBe(0);
-    expect(validateBatch(db, again)).toEqual({ kind: 'valide', imported: 8 });
+    expect(validateBatch(db, again)).toMatchObject({ kind: 'valide', imported: 8 });
   });
 });

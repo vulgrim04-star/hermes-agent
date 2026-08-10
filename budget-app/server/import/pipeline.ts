@@ -25,6 +25,8 @@ import {
   softKey,
   strictFingerprint,
 } from '../domain/fingerprint.js';
+import { applyRules } from '../domain/rules.js';
+import { detectTransfers } from '../domain/transfers.js';
 import { parseCsv } from './csv/parse.js';
 import type { CsvParseOptions } from './csv/parse.js';
 import { detectFormat } from './detect.js';
@@ -392,7 +394,16 @@ export interface ValidationRefusal {
   reasons: string[];
 }
 
-export type ValidationOutcome = { kind: 'valide'; imported: number } | ValidationRefusal;
+export interface ValidationSuccess {
+  kind: 'valide';
+  imported: number;
+  /** Écritures catégorisées d'office par les règles au moment de la validation. */
+  categorised: number;
+  /** Paires de transfert interne proposées à l'arbitrage après cet import. */
+  transfersProposed: number;
+}
+
+export type ValidationOutcome = ValidationSuccess | ValidationRefusal;
 
 /**
  * Bascule un brouillon en écritures réelles.
@@ -412,7 +423,9 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
       }
     | undefined;
   if (batch === undefined) throw new Error(`Lot introuvable : ${batchId}`);
-  if (batch.status === 'valide') return { kind: 'valide', imported: 0 };
+  if (batch.status === 'valide') {
+    return { kind: 'valide', imported: 0, categorised: 0, transfersProposed: 0 };
+  }
 
   const [status, gap] = aggregateReconciliation(db, batchId);
   const reasons: string[] = [];
@@ -456,8 +469,9 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
     );
 
     let imported = 0;
+    const insertedIds: number[] = [];
     for (const pending of pendings) {
-      insert.run(
+      const info = insert.run(
         batchId,
         pending.account_id,
         pending.value_date,
@@ -474,6 +488,7 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
         pending.soft_key,
         pending.occurrence,
       );
+      insertedIds.push(Number(info.lastInsertRowid));
       imported += 1;
     }
 
@@ -486,7 +501,14 @@ export function validateBatch(db: Db, batchId: number, force = false): Validatio
 
     db.prepare('DELETE FROM pending_transactions WHERE batch_id = ?').run(batchId);
 
-    return { kind: 'valide', imported };
+    // Les règles s'appliquent aux seules écritures que ce lot vient d'insérer :
+    // un import validé arrive déjà catégorisé, et le reste de la base ne bouge pas.
+    const categorised = applyRules(db, insertedIds).updated;
+    // Un virement entre deux comptes du ménage n'apparaît en double que lorsque
+    // le second relevé arrive — c'est donc ici qu'il faut regarder.
+    const transfers = detectTransfers(db).length;
+
+    return { kind: 'valide', imported, categorised, transfersProposed: transfers };
   })();
 }
 
