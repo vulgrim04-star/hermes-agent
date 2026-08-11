@@ -12,51 +12,57 @@ l'authentification et les données. Le déploiement se fait tout seul à chaque 
 
 ## Mise en ligne, une fois
 
-Trois étapes, dix minutes. Rien à installer.
+Deux étapes. Rien à installer, et aucune clé à recopier si vous prenez le chemin A.
 
-### 1. Le projet Supabase
+### 1. Vercel
 
-Sur [supabase.com](https://supabase.com), créer un projet (région Europe, `eu-central-1` par
-exemple). Puis, dans le **SQL Editor**, exécuter dans cet ordre :
+[vercel.com/new](https://vercel.com/new) → importer le dépôt **`hermes-agent`**.
 
-1. le contenu de [`supabase/schema.sql`](supabase/schema.sql) — la table ;
-2. le contenu de [`supabase/policies.sql`](supabase/policies.sql) — les règles d'accès.
+⚠️ **Régler « Root Directory » sur `budget-menage`.** L'application vit dans un sous-dossier ;
+sans ce réglage, Vercel construirait la racine et ne trouverait rien. Le champ est sur l'écran
+d'import, sous « Configure Project » → *Edit* en face de Root Directory. Le reste se détecte tout
+seul : Vercel reconnaît Vite.
 
-Sans la seconde étape, **la table serait lisible par n'importe quel porteur de la clé publique**.
-Voir [`supabase/README.md`](supabase/README.md) pour ce que chaque règle garantit.
+Puis, pour les identifiants Supabase, au choix :
 
-Dans **Authentication → Providers**, laisser « Email » actif. Dans **Authentication → URL
-Configuration**, mettre l'adresse Vercel du projet en *Site URL* une fois l'étape 2 faite : c'est
-elle que suivront les liens de confirmation et de réinitialisation.
+**A. L'intégration Supabase — rien à recopier.** Onglet *Integrations* du projet Vercel →
+*Supabase* → *Add integration* → créer ou relier un projet. Elle injecte `SUPABASE_URL` et
+`SUPABASE_ANON_KEY` toute seule, et la construction sait les lire (voir `vite.config.js`).
+Redéployer une fois l'intégration ajoutée.
 
-### 2. Le projet Vercel
-
-Sur [vercel.com](https://vercel.com) → **Add New → Project**, importer le dépôt GitHub.
-
-⚠️ **Régler « Root Directory » sur `budget-menage`.** L'application vit dans un sous-dossier du
-dépôt ; sans ce réglage, Vercel construirait la racine et ne trouverait rien. Le champ est sur
-l'écran d'import, sous « Configure Project » → *Edit* en face de Root Directory. Le reste se
-détecte tout seul : Vercel reconnaît Vite et ne demande rien d'autre.
-
-Avant de déployer, ajouter les deux variables d'environnement (**Project Settings →
-Environment Variables**), en les prenant dans Supabase → **Project Settings → API** :
+**B. À la main.** *Project Settings → Environment Variables*, deux valeurs prises dans
+Supabase → *Project Settings → API* :
 
 | Variable | Valeur |
 |---|---|
 | `VITE_SUPABASE_URL` | l'URL du projet (`https://xxxx.supabase.co`) |
 | `VITE_SUPABASE_ANON_KEY` | la clé **anon / public** |
 
-> ⚠️ Une variable `VITE_` est figée dans le bundle **au moment de la construction**. L'ajouter
-> après un déploiement n'a aucun effet tant qu'on n'a pas redéployé.
+> ⚠️ Une variable est figée dans le bundle **au moment de la construction**. L'ajouter après un
+> déploiement n'a aucun effet tant qu'on n'a pas redéployé.
 
-Ne **jamais** ajouter la clé `service_role` : elle contourne toutes les règles d'accès, et un
-préfixe `VITE_` la ferait entrer dans le code envoyé à chaque visiteur. L'application n'en a
-aucun besoin — elle n'a pas de fonction serveur.
+**La clé `service_role` ne peut pas entrer**, quel que soit le nom sous lequel on la poserait :
+la construction lit le rôle inscrit dans le jeton et **échoue** plutôt que de la publier. Elle
+contourne toutes les règles d'accès ; sa place est côté serveur, et cette application n'en a pas.
+
+### 2. Supabase : la table et ses règles
+
+Dans le **SQL Editor** du projet Supabase, exécuter dans cet ordre :
+
+1. [`supabase/schema.sql`](supabase/schema.sql) — la table ;
+2. [`supabase/policies.sql`](supabase/policies.sql) — les règles d'accès.
+
+Sans la seconde, **la table serait lisible par n'importe quel porteur de la clé publique** — et
+cette clé est dans le bundle, par construction. Voir [`supabase/README.md`](supabase/README.md)
+pour ce que chaque règle garantit.
+
+Dans **Authentication → URL Configuration**, mettre l'adresse Vercel en *Site URL* : c'est elle
+que suivront les liens de confirmation et de réinitialisation.
 
 ### 3. Le compte
 
 Ouvrir l'adresse du projet, « Pas encore de compte ? En créer un », confirmer l'adresse par le
-lien reçu, se connecter. C'est tout.
+lien reçu, se connecter.
 
 ---
 
