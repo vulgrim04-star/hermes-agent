@@ -13,12 +13,18 @@
 # Aucune écriture n'est tentée : on ne dépose rien dans la base de quelqu'un
 # pour vérifier qu'elle est bien fermée.
 #
-# Déclenchement manuel uniquement : Actions → « Base Supabase — contrôle » →
-# Run workflow.
+# Déclenchement manuel — Actions → « Base Supabase — contrôle » → Run workflow
+# — une fois ce fichier sur la branche par défaut. Tant qu'il n'y est pas,
+# GitHub ne connaît pas le workflow et refuse de le déclencher : d'où le
+# déclenchement à la poussée, restreint à ce seul fichier pour qu'il ne se
+# rappelle jamais à vous sans raison.
 name: Base Supabase — contrôle
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/supabase-check.yml'
 
 permissions:
   contents: read
