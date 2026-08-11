@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { analyse, reconcile } from '../lib/csv.js';
+import { reconcile } from '../lib/csv.js';
+import { analyseFile } from '../lib/analyse.js';
 import { commitStatements } from '../lib/ledger.js';
 import { fmt, parseAmount } from '../lib/money.js';
 import { frDate } from '../lib/dates.js';
@@ -25,7 +26,7 @@ export default function Import() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setReport(analyse(reader.result, file.name));
+        setReport(analyseFile(reader.result, file.name));
       } catch (error) {
         setReport({ ok: false, filename: file.name, headers: [], missing: ['un contenu lisible (' + error.message + ')'] });
       }
@@ -62,8 +63,9 @@ export default function Import() {
             <div className="grow">
               <h3>Importer un relevé</h3>
               <p>
-                Export CSV de votre e-banking. L’encodage, le séparateur et les colonnes sont déduits
-                du fichier ; rien n’est comptabilisé avant votre validation.
+                Export <strong>CSV</strong> ou <strong>SWIFT MT940</strong> de votre e-banking. Le
+                format est reconnu sur le contenu, pas sur l’extension ; rien n’est comptabilisé
+                avant votre validation.
               </p>
             </div>
           </header>
@@ -88,7 +90,7 @@ export default function Import() {
               <input
                 ref={fileInput}
                 type="file"
-                accept=".csv,.txt,.tsv"
+                accept=".csv,.txt,.tsv,.sta,.940,.mt940"
                 hidden
                 onChange={(e) => e.target.files[0] && read(e.target.files[0])}
               />
@@ -144,8 +146,12 @@ export default function Import() {
           <button type="button" className="btn" onClick={() => setReport(null)}>Abandonner</button>
         </header>
         <dl className="stats">
+          <Stat label="Format" value={report.format === 'mt940' ? 'SWIFT MT940' : 'CSV'} />
           <Stat label="Encodage" value={report.encoding} />
-          <Stat label="Séparateur" value={report.delimiter === '\t' ? 'tabulation' : report.delimiter} />
+          <Stat
+            label="Séparateur"
+            value={report.format === 'mt940' ? '—' : report.delimiter === '\t' ? 'tabulation' : report.delimiter}
+          />
           <Stat label="Lignes lues" value={String(report.read)} />
           <Stat label="Écritures" value={String(total)} />
           <Stat label="Comptes" value={String(report.statements.length)} />
@@ -179,8 +185,10 @@ export default function Import() {
             <h3>Relevés et rapprochement</h3>
             <p>
               {report.statements.length > 1
-                ? `Ce fichier porte ${report.statements.length} comptes. Chacun est rapproché séparément.`
-                : 'Saisissez les soldes lus dans l’e-banking pour que le contrôle s’exécute.'}
+                ? `Ce fichier porte ${report.statements.length} relevés. Chacun est rapproché séparément.`
+                : report.format === 'mt940'
+                  ? 'Le MT940 porte ses soldes : le contrôle s’exécute sans rien saisir.'
+                  : 'Saisissez les soldes lus dans l’e-banking pour que le contrôle s’exécute.'}
             </p>
           </div>
         </header>

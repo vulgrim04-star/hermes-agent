@@ -1,8 +1,9 @@
 # Budget du ménage
 
 Application de gestion du budget d'un ménage suisse (CHF, canton de Fribourg), en ligne, avec
-compte personnel. Elle importe un export bancaire CSV, le dédoublonne, prouve le rapprochement
-avant de comptabiliser quoi que ce soit, catégorise les écritures et rend le mois et l'année.
+compte personnel. Elle importe un relevé bancaire **CSV ou SWIFT MT940**, le dédoublonne, prouve
+le rapprochement avant de comptabiliser quoi que ce soit, catégorise les écritures, rend le mois
+et l'année, et suit le patrimoine jusqu'à l'état au 31 décembre.
 
 Même pile que Cat's Eyes Studio : **Vite + React** servi par **Vercel**, **Supabase** pour
 l'authentification et les données. Le déploiement se fait tout seul à chaque `git push`.
@@ -73,26 +74,32 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 29 tests
+npm test                    # 64 tests
 ```
 
 ---
 
 ## Ce que fait l'import
 
-1. **Format déduit du fichier**, jamais supposé : encodage (UTF-8 avec ou sans BOM, UTF-16,
-   Windows-1252), séparateur (`;` `,` tabulation `|`), ligne d'en-tête sous le préambule, et
-   colonnes rapprochées d'un dictionnaire de synonymes français / allemand / anglais.
+1. **Format déduit du contenu**, jamais de l'extension : un MT940 s'appelle volontiers `.txt`,
+   et un CSV renommé `.sta` reste un CSV.
+   - **CSV** — encodage (UTF-8 avec ou sans BOM, UTF-16, Windows-1252), séparateur
+     (`;` `,` tabulation `|`), ligne d'en-tête sous le préambule, colonnes rapprochées d'un
+     dictionnaire de synonymes français / allemand / anglais.
+   - **MT940** — champs `:20:` `:25:` `:60F:` `:61:` `:86:` `:62F:`, libellés multi-lignes
+     rattachés à leur opération, forme structurée `?20?32` dépliée, enveloppe SWIFT tolérée,
+     extournes `RC` / `RD` traitées comme les inversions qu'elles sont. **Un MT940 porte ses
+     soldes** : le rapprochement s'y exécute sans rien saisir.
 2. **Un relevé par compte.** Un export UBS mélange comptes bancaires et cartes (`****7648`) dans
    une seule colonne. Chaque ligne est rattachée au compte qu'elle porte, sans quoi les achats
    par carte **et** leur règlement compteraient tous deux en dépense.
 3. **Déduplication.** Chaque écriture reçoit une empreinte : compte + date + montant + libellé
    normalisé + rang d'occurrence au sein du relevé. Réimporter le même fichier n'ajoute rien,
    et deux lignes strictement identiques restent deux écritures — parce qu'elles le sont.
-4. **Rapprochement.** `ouverture + mouvements = clôture`, par compte. L'export UBS ne portant
-   aucune colonne de solde, les deux soldes se saisissent depuis l'e-banking ; renseignés, le
-   contrôle s'exécute et **bloque la validation** tant qu'il ne boucle pas. Le forçage reste
-   possible, et l'écart reste inscrit en face.
+4. **Rapprochement.** `ouverture + mouvements = clôture`, par relevé. Un MT940 se rapproche
+   tout seul ; l'export CSV d'UBS ne portant aucune colonne de solde, les deux soldes s'y
+   saisissent depuis l'e-banking. Renseignés, le contrôle s'exécute et **bloque la validation**
+   tant qu'il ne boucle pas. Le forçage reste possible, et l'écart reste inscrit en face.
 5. **Diagnostic avant toute écriture** : lignes lues, lignes non lues avec leur numéro, sens
    contradictoires, comptes trouvés. Rien n'est comptabilisé avant validation.
 
@@ -107,6 +114,41 @@ npm test                    # 29 tests
 - **Les transferts internes** — règlements de carte, virements entre comptes — sont **proposés**
   à l'appairage, jamais imposés : deux mouvements opposés peuvent être un remboursement. Une
   paire confirmée sort des revenus et des dépenses sans disparaître du journal.
+
+## Patrimoine
+
+Le budget dit ce qui entre et ce qui sort ; l'écran **Patrimoine** dit ce que le ménage possède,
+dettes déduites.
+
+- **Les comptes suivis se déduisent, ils ne se saisissent pas.** La valeur part du solde de
+  clôture rapproché le plus proche, auquel s'ajoutent les mouvements postérieurs — ou dont se
+  retranchent les mouvements suivants quand le seul relevé soldé est postérieur. Un compte avant
+  son premier relevé est *inconnu*, pas à zéro.
+- **Les quantités sont des entiers à 10⁻⁸.** 0,42815 BTC × 58'432.15 se calcule
+  `quantité × cours / 10⁸`, arrondi au centime une seule fois. La valeur stockée fait foi : un
+  cours arrondi ne doit pas faire bouger un patrimoine déjà arrêté.
+- **Un mois non saisi reporte la dernière valeur connue**, et le dit.
+- **Une dette se saisit positive** et se soustrait par sa nature, pas par un signe à retenir.
+- **État au 31 décembre**, la date que retient la déclaration de fortune fribourgeoise, avec
+  l'origine de chaque chiffre — saisi, déduit d'un relevé, ou reporté.
+
+**Pilier 3a.** Versements de l'année, plafond, reste à verser, jours restants. Le plafond change
+chaque année et **ne se devine pas** : tant qu'il n'est pas saisi, l'écran le dit et n'affiche
+aucun reste à verser. 2025 est pré-rempli à CHF 7'258.00.
+
+## Exports
+
+*Réglages → Export et sauvegarde* :
+
+- **Classeur `.xlsx` à cellules typées** — une date exportée en texte ne se trie pas, un montant
+  en texte ne s'additionne pas. Le classeur est écrit à la main (`src/lib/xlsx.js`, une archive
+  ZIP de quelques XML) : les bibliothèques du marché pèsent près d'un mégaoctet pour ce qu'on en
+  fait ici, et ce poids serait téléchargé à chaque visite.
+- **CSV** en UTF-8 avec BOM et point-virgule — Excel l'ouvre sans assistant d'import.
+- **État des positions au 31.12** de l'année close, la pièce à joindre à la déclaration de
+  fortune. Une dette en sort négative, pour que la colonne s'additionne en fortune nette.
+- **Sauvegarde `.json`** rechargeable, qui emporte tout : écritures, règles, correspondances,
+  positions et valorisations.
 
 ## Conventions de calcul
 
@@ -136,24 +178,27 @@ assistant d'import).
 ```
 budget-menage/  cette application en ligne (Vercel + Supabase)
 budget-app/     la version locale du même projet, dans le même dépôt : serveur Node + SQLite,
-                MT940, patrimoine, Pilier 3a, exports Excel — rien ne quitte la machine
+                découpage d'écriture, sauvegarde de la base — rien ne quitte la machine
 ```
 
 ```
-src/lib/        montants, dates, lecture CSV, plan de comptes, journal — sans dépendance à React
+src/lib/        montants, dates, lecture CSV et MT940, plan de comptes, journal, patrimoine,
+                écriture de classeurs Excel — sans dépendance à React
 src/store/      session Supabase, état du budget et sa synchronisation
-src/pages/      Connexion, Import, Tableau de bord, Écritures, Révision, Réglages
+src/pages/      Connexion, Import, Tableau de bord, Écritures, Révision, Patrimoine, Réglages
 supabase/       schéma et règles d'accès, source de vérité versionnée
 ```
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 29 tests.
+et c'est là que vivent les 64 tests.
 
 ## Limites connues
 
-- **Pas de MT940** dans cette version en ligne : seul le CSV est lu.
-- **Pas de patrimoine ni de Pilier 3a** ici — ils existent dans la version locale du projet.
+- **Les cours ne sont pas récupérés automatiquement**, et ne le seront pas : le cours d'un ETF
+  ou du Bitcoin se saisit, une fois par mois, à côté de la quantité.
+- **Pas de découpage d'écriture** ici : une écriture porte une seule catégorie. La version
+  locale permet de la ventiler entre plusieurs.
 - **Pas de conversion de devise** : une écriture en EUR est conservée telle quelle et n'entre
   pas dans les totaux CHF.
 - **Un montant à trois décimales sans indication** (`1.005`) est lu comme un groupe de milliers,

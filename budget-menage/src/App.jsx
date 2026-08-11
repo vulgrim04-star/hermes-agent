@@ -10,6 +10,7 @@ import { pendingCount } from './lib/ledger.js';
 import Login from './pages/Login.jsx';
 import Password from './pages/Password.jsx';
 import Import from './pages/Import.jsx';
+import NetWorth from './pages/NetWorth.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Transactions from './pages/Transactions.jsx';
 import Review from './pages/Review.jsx';
@@ -19,6 +20,7 @@ const TABS = [
   { to: '/', label: 'Tableau de bord', end: true },
   { to: '/ecritures', label: 'Écritures' },
   { to: '/revision', label: 'Révision', badge: true },
+  { to: '/patrimoine', label: 'Patrimoine' },
   { to: '/import', label: 'Import' },
   { to: '/reglages', label: 'Réglages' },
 ];
@@ -115,6 +117,7 @@ function Shell({ demo = false }) {
             <Route path="/" element={<Dashboard />} />
             <Route path="/ecritures" element={<Transactions />} />
             <Route path="/revision" element={<Review />} />
+            <Route path="/patrimoine" element={<NetWorth />} />
             <Route path="/import" element={<Import />} />
             <Route path="/reglages" element={<Settings />} />
             <Route path="/mot-de-passe" element={<Password />} />

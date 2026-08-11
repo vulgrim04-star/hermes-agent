@@ -28,7 +28,25 @@ export function normLabel(label) {
 export function emptyState() {
   const bank = {};
   for (const m of BANK_MAP_SEED) bank[normLabel(m.label)] = { label: m.label, cat: m.cat, treat: m.treat };
-  return { version: 1, tx: [], accounts: {}, rules: [], bank, transfers: [], seen: {}, counter: 0 };
+  return {
+    version: 2,
+    tx: [],
+    accounts: {},
+    rules: [],
+    bank,
+    transfers: [],
+    seen: {},
+    counter: 0,
+    /** Relevés importés, avec leurs soldes : c'est d'eux que le patrimoine
+     *  déduit les soldes bancaires plutôt que de les faire saisir. */
+    statements: [],
+    /** Positions du patrimoine et leurs valorisations mensuelles. */
+    assets: [],
+    valuations: [],
+    /** Plafond du pilier 3a par année. Publié en fin d'année précédente : il
+     *  se saisit, il ne se devine pas. 2025 est le seul pré-rempli. */
+    tax: { 2025: 725800 },
+  };
 }
 
 /* --------------------------------------------------------------- import */
@@ -50,6 +68,18 @@ export function commitStatements(state, statements) {
   for (const statement of statements) {
     if (!state.accounts[statement.key]) {
       state.accounts[statement.key] = { key: statement.key, label: statement.label };
+    }
+    // Le relevé est conservé avec ses soldes : c'est le seul chiffre dont on
+    // sache qu'il est exact, et le patrimoine s'appuie dessus.
+    if (statement.closing !== null && statement.to) {
+      state.statements.push({
+        acc: statement.key,
+        from: statement.from,
+        to: statement.to,
+        opening: statement.opening,
+        closing: statement.closing,
+        movements: statement.movements,
+      });
     }
     const ranks = new Map();
     for (const row of statement.rows) {

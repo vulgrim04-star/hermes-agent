@@ -5,6 +5,8 @@ import { LEAVES, catOf, kindOf, rootOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
 import { applyBank, emptyState, normLabel } from '../lib/ledger.js';
+import { positionsAt, ORIGIN_LABELS, QUANTITY_SCALE } from '../lib/networth.js';
+import { buildXlsx, date as xdate, money as xmoney, number as xnumber, text as xtext } from '../lib/xlsx.js';
 import { edit, replaceAll, useBudget } from '../store/useBudget.js';
 
 const TREATMENTS = [
@@ -48,8 +50,14 @@ export default function Settings() {
             <button type="button" className="btn primary" onClick={() => downloadJson(data, setMessage)}>
               Télécharger la sauvegarde (.json)
             </button>
+            <button type="button" className="btn" onClick={() => downloadXlsx(data, setMessage)}>
+              Exporter les écritures (.xlsx)
+            </button>
             <button type="button" className="btn" onClick={() => downloadCsv(data, setMessage)}>
               Exporter les écritures (.csv)
+            </button>
+            <button type="button" className="btn" onClick={() => downloadPositions(data, setMessage)}>
+              État des positions au 31.12 (.xlsx)
             </button>
             <button type="button" className="btn" onClick={() => fileInput.current.click()}>
               Recharger une sauvegarde…
@@ -63,9 +71,11 @@ export default function Settings() {
             />
           </div>
           <p className="hint">
-            Le CSV sort en UTF-8 avec BOM et séparateur point-virgule : Excel l’ouvre sans assistant
-            d’import et sans casser les accents. Une écriture s’y retrouve avec sa catégorie, son
-            compte et le libellé d’origine de la banque.
+            Le classeur Excel porte des <strong>dates et des montants typés</strong> : ils se trient
+            et s’additionnent sans retoucher une colonne. Le CSV sort en UTF-8 avec BOM et séparateur
+            point-virgule — Excel l’ouvre sans assistant d’import et sans casser les accents.
+            L’état des positions au 31 décembre de l’année close est la pièce à joindre à la
+            déclaration de fortune : une ligne par position, avec l’origine de chaque chiffre.
           </p>
         </div>
       </div>
@@ -207,8 +217,9 @@ export default function Settings() {
 
 /* ------------------------------------------------------------- fichiers */
 
-function download(filename, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+function download(filename, content, type) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -251,6 +262,84 @@ function downloadCsv(data, notify) {
   const stamp = new Date().toISOString().slice(0, 10);
   download(`ecritures-${stamp}.csv`, '﻿' + lines.join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
   notify('Export téléchargé.');
+}
+
+/** Colonnes communes aux deux exports d'écritures. */
+function exportRows(data) {
+  const kinds = { revenu: 'Revenu', depense: 'Dépense', epargne: 'Épargne' };
+  return data.tx.map((tx) => {
+    const leaf = catOf(tx.cat);
+    return [
+      xdate(tx.date),
+      xtext((data.accounts[tx.acc] || {}).label || tx.acc),
+      xtext(tx.label),
+      xtext(tx.cp),
+      xtext(rootOf(tx.cat)),
+      xtext(leaf && leaf.parent ? leaf.name : null),
+      xtext(kinds[kindOf(tx.cat, tx.cents)]),
+      xmoney(tx.cents),
+      xtext('CHF'),
+      xtext(tx.ext),
+      xtext(tx.transfer ? 'oui' : 'non'),
+    ];
+  });
+}
+
+const EXPORT_COLUMNS = [
+  { header: 'Date de valeur', width: 14 },
+  { header: 'Compte', width: 26 },
+  { header: 'Libellé', width: 44 },
+  { header: 'Contrepartie', width: 22 },
+  { header: 'Catégorie', width: 20 },
+  { header: 'Sous-catégorie', width: 22 },
+  { header: 'Type', width: 12 },
+  { header: 'Montant', width: 14 },
+  { header: 'Devise', width: 9 },
+  { header: 'Catégorie banque', width: 24 },
+  { header: 'Transfert interne', width: 16 },
+];
+
+function downloadXlsx(data, notify) {
+  const stamp = new Date().toISOString().slice(0, 10);
+  download(`ecritures-${stamp}.xlsx`, buildXlsx({
+    sheetName: 'Écritures',
+    columns: EXPORT_COLUMNS,
+    rows: exportRows(data),
+  }));
+  notify('Classeur téléchargé.');
+}
+
+/**
+ * État des positions au 31 décembre de l'année close — la date que retient la
+ * déclaration de fortune. Une dette en sort négative, pour que la colonne
+ * s'additionne en fortune nette.
+ */
+function downloadPositions(data, notify) {
+  const year = new Date().getUTCFullYear() - 1;
+  const period = `${year}-12`;
+  const positions = positionsAt(data, period);
+  if (!positions.length) { notify('Aucune position à exporter : ajoutez-en dans Patrimoine.'); return; }
+
+  download(`positions-${period}.xlsx`, buildXlsx({
+    sheetName: `Positions ${period}`,
+    columns: [
+      { header: 'Position', width: 32 },
+      { header: 'Nature', width: 16 },
+      { header: 'Quantité', width: 18 },
+      { header: 'Cours', width: 14 },
+      { header: 'Valeur', width: 16 },
+      { header: 'Origine', width: 20 },
+    ],
+    rows: positions.map((p) => [
+      xtext(p.label),
+      xtext(p.kind),
+      p.quantityE8 == null ? null : xnumber(p.quantityE8 / QUANTITY_SCALE, 8),
+      xmoney(p.unitPriceCents),
+      p.valueCents == null ? null : xmoney(p.isLiability ? -Math.abs(p.valueCents) : p.valueCents),
+      xtext(ORIGIN_LABELS[p.origin]),
+    ]),
+  }));
+  notify(`État au 31.12.${year} téléchargé.`);
 }
 
 function restore(file, notify) {

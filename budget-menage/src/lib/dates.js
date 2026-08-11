@@ -63,9 +63,18 @@ export function monthLabel(period) {
   return MONTHS[+m - 1] + ' ' + y;
 }
 
+/**
+ * Premier et dernier jour du mois `AAAA-MM`, bornes comprises. Rend `null` sur
+ * un mois qui n'existe pas : c'est ce retour qui sert de garde-fou aux
+ * appelants, un `2026-13` accepté en silence irait se ranger dans la base.
+ */
 export function monthBounds(period) {
-  const [y, m] = period.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const match = /^(\d{4})-(\d{2})$/.exec(String(period));
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return { start: period + '-01', end: period + '-' + String(last).padStart(2, '0') };
 }
 
