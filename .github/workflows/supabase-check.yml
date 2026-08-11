@@ -68,8 +68,11 @@ jobs:
             # des tables qu'il expose tranche : s'il en connaît d'autres, son
             # cache est vivant, et l'absence de budget_state est réelle.
             echo "--- Tables exposées par ce projet, vues à l'instant :"
-            curl -sS --max-time 30 -H "apikey: $KEY" -H "Accept: application/openapi+json" \
-              "$URL/rest/v1/" -o /tmp/api.json || true
+            # Les deux en-têtes, comme pour la requête principale : `apikey`
+            # seul ne fait pas endosser le rôle anon, et la liste reviendrait
+            # vide pour une raison qui n'a rien à voir avec la base.
+            curl -sS --max-time 30 -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+              -H "Accept: application/openapi+json" "$URL/rest/v1/" -o /tmp/api.json || true
             node -e "
               try {
                 const spec = require('/tmp/api.json');
