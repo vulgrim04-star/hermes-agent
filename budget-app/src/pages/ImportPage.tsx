@@ -76,10 +76,12 @@ export function ImportPage() {
       >
         <div className="flex flex-wrap items-end gap-4">
           <Field label="Fichier">
+            {/* Aucun filtre `accept` : iOS le mappe sur des UTI et grise alors
+                tous les fichiers de l'app Fichiers, et le format se reconnaît
+                de toute façon au contenu, jamais à l'extension. */}
             <input
               ref={fileInput}
               type="file"
-              accept=".csv,.txt,.sta,.940,.mt940"
               className="text-sm"
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);

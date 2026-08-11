@@ -333,3 +333,33 @@ describe('shiftMonth', () => {
     expect(shiftMonth('2026-12', 1)).toBe('2027-01');
   });
 });
+
+describe('analyseFile — fichiers qui ne sont pas des relevés', () => {
+  const octets = (...o) => new Uint8Array([...o, ...new Array(40).fill(0x20)]).buffer;
+
+  it('reconnaît un classeur .xlsx et dit de réexporter en CSV', () => {
+    const r = analyseFile(octets(0x50, 0x4b, 0x03, 0x04), 'releve.xlsx');
+    expect(r.ok).toBe(false);
+    expect(r.missing[0]).toMatch(/classeur Excel/);
+    expect(r.missing[0]).toMatch(/CSV/);
+  });
+
+  it('reconnaît un ancien .xls', () => {
+    const r = analyseFile(octets(0xd0, 0xcf, 0x11, 0xe0), 'releve.xls');
+    expect(r.missing[0]).toMatch(/ancien classeur/);
+  });
+
+  it('reconnaît un PDF et explique pourquoi il est inexploitable', () => {
+    const r = analyseFile(octets(0x25, 0x50, 0x44, 0x46), 'releve.pdf');
+    expect(r.missing[0]).toMatch(/PDF/);
+    expect(r.missing[0]).toMatch(/image du relevé/);
+  });
+
+  it('ne se déclenche pas sur un CSV ordinaire', () => {
+    const csv = new TextEncoder().encode(
+      'Date de valeur;Description;Débit;Crédit\n2026-01-05;Salaire;;6500.00\n',
+    );
+    const r = analyseFile(csv.buffer, 'releve.csv');
+    expect(r.format).toBe('csv');
+  });
+});

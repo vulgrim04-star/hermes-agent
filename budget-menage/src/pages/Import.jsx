@@ -87,10 +87,23 @@ export default function Import() {
               <button type="button" className="btn" onClick={() => fileInput.current.click()}>
                 choisissez un fichier
               </button>
+              {/*
+                Aucun filtre `accept`, et c'est délibéré.
+
+                iOS ne mappe pas `accept` sur des extensions mais sur des UTI :
+                une liste comme `.csv,.sta,.940` y grise la totalité des
+                fichiers dans l'app Fichiers, et le relevé devient
+                insélectionnable — l'application paraît alors refuser un fichier
+                qu'elle n'a jamais reçu.
+
+                Le filtre était de toute façon en contradiction avec le principe
+                de cet import : le format se reconnaît au contenu, jamais à
+                l'extension. Un fichier qui n'est pas un relevé est refusé par
+                l'analyse, avec la raison — c'est là que le contrôle a sa place.
+              */}
               <input
                 ref={fileInput}
                 type="file"
-                accept=".csv,.txt,.tsv,.sta,.940,.mt940"
                 hidden
                 onChange={(e) => e.target.files[0] && read(e.target.files[0])}
               />
