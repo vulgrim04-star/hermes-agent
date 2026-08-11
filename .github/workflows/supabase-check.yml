@@ -1,0 +1,77 @@
+# Contrôle de la base du budget.
+#
+# Deux questions, et deux seulement :
+#   1. la table `budget_state` existe-t-elle ?
+#   2. refuse-t-elle bien la lecture à un visiteur non connecté ?
+#
+# La seconde compte autant que la première. La clé publishable est dans le
+# bundle de chaque visiteur, par construction : si la RLS n'était pas en place,
+# n'importe qui pourrait lire des relevés bancaires avec une clé qu'il trouve
+# dans le code source. Une table qui existe mais qui répond, c'est pire qu'une
+# table absente.
+#
+# Aucune écriture n'est tentée : on ne dépose rien dans la base de quelqu'un
+# pour vérifier qu'elle est bien fermée.
+#
+# Déclenchement manuel uniquement : Actions → « Base Supabase — contrôle » →
+# Run workflow.
+name: Base Supabase — contrôle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Les identifiants viennent du fichier qui fait déjà foi pour
+      # l'application : pas de seconde copie à tenir à jour.
+      - name: Lire les identifiants publics du projet
+        id: creds
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "
+            const m = await import('./budget-menage/src/lib/supabase.public.js');
+            console.log('url=' + m.PUBLIC_SUPABASE_URL);
+            console.log('key=' + m.PUBLIC_SUPABASE_KEY);
+          " >> "$GITHUB_OUTPUT"
+
+      - name: La table existe-t-elle, et est-elle fermée ?
+        env:
+          URL: ${{ steps.creds.outputs.url }}
+          KEY: ${{ steps.creds.outputs.key }}
+        run: |
+          set -uo pipefail
+          code=$(curl -sS -o /tmp/rep.json -w '%{http_code}' --max-time 30 \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+            "$URL/rest/v1/budget_state?select=user_id&limit=1")
+
+          echo "Réponse HTTP : $code"
+          echo "Corps        : $(cat /tmp/rep.json)"
+
+          if [ "$code" = "404" ] || grep -q 'PGRST205\|does not exist' /tmp/rep.json; then
+            echo "::error title=Table absente::budget_state n'existe pas. Exécuter le SQL dans le SQL Editor du projet."
+            exit 1
+          fi
+
+          if [ "$code" != "200" ]; then
+            echo "::error title=Réponse inattendue::$code — $(cat /tmp/rep.json)"
+            exit 1
+          fi
+
+          # 200 avec un tableau vide : la table existe et la RLS refuse la
+          # lecture anonyme. C'est exactement l'état attendu.
+          if [ "$(cat /tmp/rep.json)" = "[]" ]; then
+            echo "✓ La table existe."
+            echo "✓ Elle ne rend aucune ligne à un visiteur non connecté : la RLS protège."
+            exit 0
+          fi
+
+          echo "::error title=Lecture anonyme possible::La table rend des lignes sans authentification. Les policies ne sont pas en place — exécuter policies.sql."
+          exit 1
