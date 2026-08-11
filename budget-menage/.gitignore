@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vercel/
+*.local
+
+# Jamais dans le dépôt : ce sont des données bancaires.
+*.csv
+!fixtures/*.csv
+.env
+.env.*
+!.env.example
