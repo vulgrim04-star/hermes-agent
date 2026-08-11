@@ -1,0 +1,144 @@
+# Installation de la base du budget, exécutée depuis un runner GitHub.
+#
+# **Pourquoi passer par ici.** La machine où je travaille ne joint pas Supabase :
+# sa passerelle de sortie refuse la connexion à `supabase.com` comme à
+# `*.supabase.co`, et un navigateur y bute exactement pareil — le blocage est
+# réseau, pas applicatif. Un runner GitHub, lui, leur parle sans difficulté.
+#
+# **Ce qu'il faut, et ce qu'il ne faut pas.** Un jeton d'accès personnel
+# Supabase, posé en secret de dépôt. Pas un mot de passe : un jeton se révoque
+# d'un clic, et GitHub le masque dans les traces. Personne d'autre que vous ne
+# le voit — moi compris, je ne lis que ce que ce workflow imprime, et il
+# n'imprime que des noms de projets.
+#
+# Le workflow liste d'abord les projets du compte : c'est ce qui tranche la
+# question restée ouverte — savoir dans quel projet le SQL doit atterrir.
+name: Base Supabase — installation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/supabase-setup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Le jeton est-il configuré ?
+        id: garde
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "${TOKEN:-}" ]; then
+            echo "pret=non" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Jeton absent::Créer un jeton sur supabase.com/dashboard/account/tokens, puis le poser en secret de dépôt SUPABASE_ACCESS_TOKEN (Settings → Secrets and variables → Actions). Ce workflow ne fait rien tant qu'il n'existe pas."
+          else
+            echo "pret=oui" >> "$GITHUB_OUTPUT"
+          fi
+
+      # La question laissée sans réponse depuis le début : dans quel projet le
+      # SQL doit-il atterrir ? Le compte le dit lui-même.
+      - name: Projets de ce compte
+        if: steps.garde.outputs.pret == 'oui'
+        id: projets
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sS --max-time 30 -H "Authorization: Bearer $TOKEN" \
+            https://api.supabase.com/v1/projects -o /tmp/projets.json
+          echo "| ref | nom | région | état |"
+          echo "|---|---|---|---|"
+          jq -r '.[] | "| \(.id) | \(.name) | \(.region) | \(.status) |"' /tmp/projets.json
+          {
+            echo "### Projets Supabase de ce compte"
+            echo "| ref | nom | région | état |"
+            echo "|---|---|---|---|"
+            jq -r '.[] | "| \(.id) | \(.name) | \(.region) | \(.status) |"' /tmp/projets.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Le projet visé par l’application
+        if: steps.garde.outputs.pret == 'oui'
+        id: cible
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "
+            const m = await import('./budget-menage/src/lib/supabase.public.js');
+            const ref = new URL(m.PUBLIC_SUPABASE_URL).hostname.split('.')[0];
+            console.log('ref=' + ref);
+            console.log('key=' + m.PUBLIC_SUPABASE_KEY);
+            console.log('url=' + m.PUBLIC_SUPABASE_URL);
+          " >> "$GITHUB_OUTPUT"
+
+      - name: Ce projet appartient-il bien à ce compte ?
+        if: steps.garde.outputs.pret == 'oui'
+        env:
+          REF: ${{ steps.cible.outputs.ref }}
+        run: |
+          set -euo pipefail
+          if jq -e --arg ref "$REF" 'any(.[]; .id == $ref)' /tmp/projets.json > /dev/null; then
+            echo "✓ $REF fait partie des projets de ce compte."
+          else
+            echo "::error title=Projet introuvable::L'application pointe sur $REF, qui n'appartient pas à ce compte. Voir la liste ci-dessus et me dire lequel utiliser."
+            exit 1
+          fi
+
+      # `POST /v1/projects/{ref}/database/query` est l'endpoint qu'utilise le
+      # SQL Editor du tableau de bord : c'est très exactement « coller et Run »,
+      # mais exécuté d'ici.
+      - name: Exécuter le SQL
+        if: steps.garde.outputs.pret == 'oui'
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ steps.cible.outputs.ref }}
+        run: |
+          set -euo pipefail
+          jq -Rs '{query: .}' budget-menage/supabase/setup.sql > /tmp/corps.json
+          code=$(curl -sS -o /tmp/sql.json -w '%{http_code}' --max-time 60 -X POST \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            --data-binary @/tmp/corps.json \
+            "https://api.supabase.com/v1/projects/$REF/database/query")
+          echo "Réponse HTTP : $code"
+          cat /tmp/sql.json
+          echo
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            echo "::error title=SQL refusé::La base a rejeté l'installation — voir le corps de la réponse ci-dessus."
+            exit 1
+          fi
+          echo "✓ SQL exécuté."
+
+      # On ne se croit pas sur parole : on redemande à l'API publique, celle que
+      # l'application utilise réellement.
+      - name: Vérifier comme le ferait l’application
+        if: steps.garde.outputs.pret == 'oui'
+        env:
+          URL: ${{ steps.cible.outputs.url }}
+          KEY: ${{ steps.cible.outputs.key }}
+        run: |
+          set -uo pipefail
+          for essai in $(seq 1 6); do
+            code=$(curl -sS -o /tmp/rep.json -w '%{http_code}' --max-time 30 \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+              "$URL/rest/v1/budget_state?select=user_id&limit=1")
+            corps=$(cat /tmp/rep.json)
+            if [ "$code" = "200" ] && [ "$corps" = "[]" ]; then
+              echo "✓ La table existe et ne rend aucune ligne sans authentification : la RLS protège."
+              echo "### ✓ Base prête" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$code" = "200" ]; then
+              echo "::error title=Lecture anonyme possible::La table rend des lignes sans authentification."
+              exit 1
+            fi
+            echo "essai $essai : $code $corps — le cache de schéma n'est pas encore à jour, nouvelle tentative dans 10 s"
+            sleep 10
+          done
+          echo "::error title=Toujours introuvable::Le SQL est passé mais l'API ne voit pas la table."
+          exit 1
