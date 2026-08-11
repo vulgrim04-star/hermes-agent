@@ -10,6 +10,23 @@ l'authentification et les données. Le déploiement se fait tout seul à chaque 
 
 ---
 
+## Le projet Supabase est déjà câblé
+
+L'application pointe sur le projet du ménage sans configuration : l'URL et la clé publishable
+sont dans [`src/lib/supabase.public.js`](src/lib/supabase.public.js). Ces deux valeurs partent
+dans le bundle de toute façon — les ranger dans un secret ne protégerait rien. **Ce qui protège
+les données, c'est la RLS**, et elle seule.
+
+D'où l'ordre à respecter : exécuter [`supabase/schema.sql`](supabase/schema.sql) puis
+[`supabase/policies.sql`](supabase/policies.sql) dans le SQL Editor **avant** de publier le site.
+`schema.sql` active la RLS dans le même souffle qu'il crée la table, ce qui la ferme à tous par
+défaut ; les policies l'ouvrent ensuite au seul titulaire.
+
+Une variable de construction (`SUPABASE_URL`, `VITE_SUPABASE_URL`…) l'emporte sur ces valeurs :
+pointer un autre projet ne demande pas de toucher au code.
+
+---
+
 ## Mise en ligne, une fois
 
 Deux étapes. Rien à installer, et aucune clé à recopier si vous prenez le chemin A.
@@ -80,10 +97,15 @@ et s'arrête en le disant plutôt que de renvoyer l'erreur brute de l'API.
 Relancer ensuite depuis *Actions → « Budget ménage — Pages » → Run workflow*. L'adresse publiée est
 `https://<compte>.github.io/<dépôt>/`.
 
-La connexion est facultative ici aussi : sans identifiants, le site s'ouvre sur son écran de
-configuration et `?demo=1` fait tourner l'application entière. Pour l'activer, poser
-`SUPABASE_URL` et `SUPABASE_ANON_KEY` en *secrets de dépôt* (*Settings → Secrets and variables →
-Actions*) et relancer le workflow — une variable de construction n'est lue qu'à ce moment-là.
+La connexion fonctionne sans rien poser : les identifiants du projet sont dans le code (voir
+plus haut). Il reste **une chose à ne pas oublier** — dans Supabase, *Authentication → URL
+Configuration*, mettre l'adresse publiée en **Site URL**. Sans elle, le lien de confirmation
+envoyé à l'inscription renvoie vers `http://localhost:3000` : le compte est bien confirmé, mais
+la page d'arrivée n'existe pas.
+
+Pour pointer un autre projet, poser `SUPABASE_URL` et `SUPABASE_ANON_KEY` en *secrets de dépôt*
+(*Settings → Secrets and variables → Actions*) et relancer le workflow — une variable de
+construction n'est lue qu'à ce moment-là.
 
 > Pages sert le site sous `/<dépôt>/` et non à la racine : la base est réglée à la construction
 > (`BASE_PATH`), et `index.html` est recopié en `404.html` parce que Pages ne réécrit pas les URL —

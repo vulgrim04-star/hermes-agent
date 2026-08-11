@@ -33,8 +33,20 @@ function pick(env, suffix) {
  * nommée suffirait à l'y mettre. On lit le rôle dans le jeton et on arrête la
  * construction plutôt que de publier ça.
  */
-function assertAnonKey(key) {
+export function assertAnonKey(key) {
   if (!key) return '';
+
+  // Nouveau format de clés : `sb_publishable_…` est faite pour le navigateur,
+  // `sb_secret_…` est son équivalent de la clé service_role et contourne la
+  // RLS. Le rôle n'y est plus lisible dans le jeton — seul le préfixe le dit.
+  if (/^sb_secret_/i.test(key)) {
+    throw new Error(
+      'Clé Supabase « sb_secret_… » : refusé. Elle contourne toutes les règles d’accès et ne ' +
+        'doit jamais entrer dans un bundle. La clé du navigateur est « sb_publishable_… ».',
+    );
+  }
+  if (/^sb_publishable_/i.test(key)) return key;
+
   const parts = key.split('.');
   if (parts.length !== 3) return key; // pas un JWT : rien à vérifier
   try {
