@@ -226,8 +226,11 @@ function SyncAlert({ message }) {
         {remede || message}
       </p>
       <p style={{ marginTop: 6 }}>
-        Ce que vous voyez à l’écran n’est pas perdu tant que vous ne rechargez pas. Vous pouvez le
-        mettre à l’abri par <em>Réglages → Export et sauvegarde</em>.
+        <strong>Vos écritures ne sont pas perdues :</strong> elles sont conservées dans ce
+        navigateur et repartiront d’elles-mêmes dès que la base les acceptera. Elles ne sont en
+        revanche pas encore accessibles depuis un autre appareil — et une navigation privée
+        refermée les emporterait. <em>Réglages → Export et sauvegarde</em> en fait une copie hors
+        du navigateur.
       </p>
     </div>
   );

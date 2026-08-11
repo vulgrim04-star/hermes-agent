@@ -43,6 +43,52 @@ export function edit(mutator) {
   return result;
 }
 
+/* ------------------------------------------------------- filet de sécurité
+ *
+ * Une copie locale est écrite **avant** chaque envoi, et effacée seulement
+ * quand l'envoi a réussi.
+ *
+ * Sans elle, un import de huit cents écritures que la base refuse d'accepter
+ * — table jamais créée, policies manquantes, réseau coupé — disparaît au
+ * rechargement suivant, après avoir affiché des totaux parfaitement justes.
+ * C'est le mode de défaillance le plus coûteux de ce produit : on ne perd pas
+ * une fonctionnalité, on perd le travail.
+ *
+ * La copie est nommée d'après le compte : deux personnes sur le même
+ * navigateur ne se marchent pas dessus.
+ */
+const localKey = (id) => `budget-local-${id}`;
+
+function saveLocal(id, data) {
+  if (!id) return;
+  try {
+    localStorage.setItem(localKey(id), JSON.stringify(data));
+  } catch {
+    /* stockage plein ou refusé : il reste l'export manuel */
+  }
+}
+
+/** Rend la copie en attente d'envoi, ou `null` s'il n'y en a pas. */
+function readLocal(id) {
+  if (!id) return null;
+  try {
+    const raw = localStorage.getItem(localKey(id));
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && Array.isArray(parsed.tx) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearLocal(id) {
+  if (!id) return;
+  try {
+    localStorage.removeItem(localKey(id));
+  } catch {
+    /* rien à nettoyer */
+  }
+}
+
 function schedule(data) {
   if (isDemo()) {
     try {
@@ -54,6 +100,9 @@ function schedule(data) {
     return;
   }
   if (!userId || !configured) return;
+  // Écrite d'abord, envoyée ensuite : c'est l'ordre qui garantit qu'un échec
+  // d'envoi ne coûte rien.
+  saveLocal(userId, data);
   pending = data;
   useBudget.setState({ sync: 'envoi' });
   clearTimeout(timer);
@@ -74,10 +123,12 @@ export async function flush() {
     );
 
   if (error) {
-    // Rien n'est perdu localement : la prochaine modification réessaiera.
+    // La copie locale reste en place : elle sera reprise au prochain chargement
+    // et renvoyée dès que la base acceptera.
     useBudget.setState({ sync: 'echec', error: error.message });
     return false;
   }
+  clearLocal(userId);
   useBudget.setState({ sync: 'a-jour', error: '' });
   return true;
 }
@@ -104,12 +155,31 @@ export async function loadForUser(id) {
   }
   useBudget.setState({ loading: true });
 
+  const attente = readLocal(id);
   const { data, error } = await supabase.from(TABLE).select('data').eq('user_id', id).maybeSingle();
 
   if (error) {
-    useBudget.setState({ loading: false, sync: 'echec', error: error.message });
+    // La base est inaccessible. On repart de la copie locale plutôt que d'un
+    // journal vide : afficher zéro écriture ferait croire que l'import n'a
+    // jamais eu lieu, et le prochain enregistrement écraserait le travail.
+    useBudget.setState({
+      data: attente ? { ...emptyState(), ...attente } : emptyState(),
+      loading: false,
+      sync: 'echec',
+      error: error.message,
+    });
     return;
   }
+
+  if (attente) {
+    // La base répond, mais une copie n'avait pas pu être envoyée : c'est elle
+    // qui fait foi — elle est postérieure — et on la renvoie aussitôt.
+    useBudget.setState({ data: { ...emptyState(), ...attente }, loading: false, sync: 'envoi', error: '' });
+    pending = useBudget.getState().data;
+    void flush();
+    return;
+  }
+
   useBudget.setState({
     data: data && data.data ? { ...emptyState(), ...data.data } : emptyState(),
     loading: false,
