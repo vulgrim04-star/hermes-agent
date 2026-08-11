@@ -62,7 +62,25 @@ jobs:
           echo "Corps        : $(cat /tmp/rep.json)"
 
           if [ "$code" = "404" ] || grep -q 'PGRST205\|does not exist' /tmp/rep.json; then
-            echo "::error title=Table absente::budget_state n'existe pas. Exécuter le SQL dans le SQL Editor du projet."
+            # PGRST205 dit « pas dans le cache de schéma », ce qui recouvre deux
+            # situations très différentes : la table n'a jamais été créée, ou
+            # elle l'a été et PostgREST ne s'en est pas encore aperçu. La liste
+            # des tables qu'il expose tranche : s'il en connaît d'autres, son
+            # cache est vivant, et l'absence de budget_state est réelle.
+            echo "--- Tables exposées par ce projet, vues à l'instant :"
+            curl -sS --max-time 30 -H "apikey: $KEY" -H "Accept: application/openapi+json" \
+              "$URL/rest/v1/" -o /tmp/api.json || true
+            node -e "
+              try {
+                const spec = require('/tmp/api.json');
+                const noms = Object.keys(spec.definitions || spec.components?.schemas || {});
+                console.log(noms.length ? noms.join(', ') : '(aucune)');
+                console.log(noms.length
+                  ? 'Le cache est à jour : PostgREST voit ces tables-là, et pas budget_state.'
+                  : 'Aucune table exposée — projet vide, ou schéma non lisible.');
+              } catch { console.log('(liste illisible)'); }
+            "
+            echo "::error title=Table absente::budget_state n'est pas exposée par ce projet."
             exit 1
           fi
 
