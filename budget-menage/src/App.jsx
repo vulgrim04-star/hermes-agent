@@ -8,7 +8,6 @@ import {
   useLocation,
 } from 'react-router-dom';
 
-import { configured } from './lib/supabaseClient.js';
 import { isDemo, leaveDemo } from './lib/demo.js';
 import { initTheme } from './lib/theme.js';
 import { explainSyncError } from './lib/sync-error.js';
@@ -57,6 +56,7 @@ const TITLES = {
   '/import': 'Import',
   '/reglages': 'Réglages',
   '/mot-de-passe': 'Mot de passe',
+  '/connexion': 'Connexion',
 };
 
 const SYNC_LABEL = {
@@ -72,30 +72,24 @@ export default function App() {
   }, []);
 
   const session = useAuth((s) => s.session);
-  const ready = useAuth((s) => s.ready);
 
-  // Le mode démonstration donne accès à l'application sans compte : les
-  // écritures restent dans ce navigateur (voir lib/demo.js).
-  if (isDemo()) {
-    return (
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <Shell demo />
-      </BrowserRouter>
-    );
-  }
-
-  // Une configuration absente doit se voir, pas provoquer un écran blanc.
-  if (!configured) return <Misconfigured />;
-  if (!ready) return <div className="auth"><p className="muted">Chargement…</p></div>;
-
+  /*
+   * L'application s'ouvre directement sur le journal, sans compte et sans
+   * attendre quoi que ce soit du réseau.
+   *
+   * Il y avait ici trois portes avant d'atteindre le premier écran : une
+   * configuration à valider, un état d'authentification à attendre, une
+   * connexion à réussir. Chacune pouvait rester fermée — et l'une d'elles l'a
+   * été, laissant l'écran d'import inatteignable et l'import « sans effet ».
+   * Le cahier des charges tranche : tout reste local, il n'y a donc aucune
+   * raison de faire dépendre l'ouverture de l'application d'un serveur.
+   *
+   * Une session ouverte reste possible et bascule la synchronisation ; son
+   * absence n'empêche plus rien.
+   */
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      {session ? <Shell /> : (
-        <Routes>
-          <Route path="/mot-de-passe" element={<Password />} />
-          <Route path="*" element={<Login />} />
-        </Routes>
-      )}
+      <Shell local={!session} />
     </BrowserRouter>
   );
 }
@@ -116,7 +110,8 @@ function useCollapsed(threshold = 26) {
   return collapsed;
 }
 
-function Shell({ demo = false }) {
+function Shell({ local = false }) {
+  const demo = isDemo();
   const data = useBudget((s) => s.data);
   const loading = useBudget((s) => s.loading);
   const sync = useBudget((s) => s.sync);
@@ -127,9 +122,10 @@ function Shell({ demo = false }) {
   const collapsed = useCollapsed();
   const title = TITLES[location.pathname] || 'Budget du ménage';
 
-  // En démonstration, aucune session n'est ouverte : le chargement local est
-  // déclenché ici plutôt que par le changement d'état d'authentification.
-  useEffect(() => { if (demo) void loadForUser(null); }, [demo]);
+  // Le journal est chargé dès l'ouverture, avec ou sans compte, et rechargé si
+  // une session apparaît ou disparaît.
+  const userId = useAuth((s) => s.session?.user?.id ?? null);
+  useEffect(() => { void loadForUser(userId); }, [userId]);
 
   // Chaque changement d'écran repart du haut : sur téléphone, arriver au
   // milieu d'une liste parce que la précédente était défilée désoriente.
@@ -147,6 +143,11 @@ function Shell({ demo = false }) {
                 <span className="pill warn">démonstration</span>
                 <button type="button" className="btn quiet" onClick={leaveDemo}>Quitter</button>
               </>
+            ) : local ? (
+              // Dire où vivent les données, sans alarmer : c'est l'état normal.
+              <span className="pill" title="Vos écritures sont enregistrées dans ce navigateur">
+                sur cet appareil
+              </span>
             ) : (
               <>
                 <span className="hide-sm" title="Synchronisation avec votre compte">
@@ -188,7 +189,7 @@ function Shell({ demo = false }) {
 
       <main className="wrap">
         <h1 className="largetitle">{title}</h1>
-        {!demo && sync === 'echec' && <SyncAlert message={error} />}
+        {!demo && !local && sync === 'echec' && <SyncAlert message={error} />}
         {loading ? (
           <p className="muted">Chargement de vos écritures…</p>
         ) : (
@@ -200,6 +201,8 @@ function Shell({ demo = false }) {
             <Route path="/import" element={<Import />} />
             <Route path="/reglages" element={<Settings />} />
             <Route path="/mot-de-passe" element={<Password />} />
+            {/* La synchronisation reste offerte, elle n'est plus imposée. */}
+            <Route path="/connexion" element={<Login />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
@@ -236,18 +239,3 @@ function SyncAlert({ message }) {
   );
 }
 
-function Misconfigured() {
-  return (
-    <div className="auth">
-      <div className="auth-card">
-        <h1>Configuration incomplète</h1>
-        <p className="lede">
-          Les variables <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> ne sont
-          pas définies. Ajoutez-les dans les réglages du projet, puis redéployez : une variable est
-          figée dans le bundle au moment de la construction, la définir sans redéployer n’a aucun
-          effet.
-        </p>
-      </div>
-    </div>
-  );
-}

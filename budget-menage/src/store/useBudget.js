@@ -89,17 +89,31 @@ function clearLocal(id) {
   }
 }
 
+/**
+ * Sans compte ouvert, l'application travaille **entièrement dans ce
+ * navigateur** — et c'est le mode par défaut, conformément au cahier des
+ * charges : « tout reste local ».
+ *
+ * Ce n'est pas un repli dégradé. C'est le fonctionnement nominal : aucune
+ * requête réseau, donc aucune des pannes qui ont rendu l'import inutilisable —
+ * table absente, projet d'un autre compte, session expirée, chargement qui ne
+ * rend jamais la main.
+ */
+function localOnly() {
+  return isDemo() || !userId;
+}
+
 function schedule(data) {
-  if (isDemo()) {
+  if (localOnly()) {
     try {
       localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
-      useBudget.setState({ sync: 'a-jour' });
+      useBudget.setState({ sync: 'a-jour', error: '' });
     } catch {
       useBudget.setState({ sync: 'echec', error: 'Stockage du navigateur plein ou refusé.' });
     }
     return;
   }
-  if (!userId || !configured) return;
+  if (!configured) return;
   // Écrite d'abord, envoyée ensuite : c'est l'ordre qui garantit qu'un échec
   // d'envoi ne coûte rien.
   saveLocal(userId, data);
@@ -140,17 +154,18 @@ if (typeof window !== 'undefined') {
 
 export async function loadForUser(id) {
   userId = id;
-  if (isDemo()) {
+
+  // Mode local : on lit le navigateur, et on rend la main tout de suite. Aucun
+  // appel réseau ne peut donc laisser l'application bloquée sur « Chargement ».
+  if (localOnly() || !configured) {
     let stored = null;
     try { stored = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) || 'null'); } catch { stored = null; }
     useBudget.setState({
       data: stored && Array.isArray(stored.tx) ? { ...emptyState(), ...stored } : emptyState(),
       loading: false,
+      sync: 'a-jour',
+      error: '',
     });
-    return;
-  }
-  if (!id || !configured) {
-    useBudget.setState({ data: emptyState(), loading: false });
     return;
   }
   useBudget.setState({ loading: true });

@@ -10,6 +10,25 @@ l'authentification et les données. Le déploiement se fait tout seul à chaque 
 
 ---
 
+## Sans compte, sans serveur — c'est le mode par défaut
+
+L'application s'ouvre directement sur le journal. Vos écritures sont enregistrées **dans ce
+navigateur** et n'en sortent pas : aucun compte à créer, aucune requête réseau, rien à configurer.
+
+C'est ce que demande le cahier des charges — *« Cloud sync : hors scope, tout reste local »* — et
+c'est aussi ce qui rend l'import robuste. Il y avait auparavant trois portes avant d'atteindre le
+premier écran : une configuration à valider, une session à attendre, une connexion à réussir.
+Chacune pouvait rester fermée, et l'écran d'import devenait alors inatteignable.
+
+Corollaire à connaître : les écritures vivent sur **cet appareil**. Un autre téléphone ne les
+verra pas, et un navigateur nettoyé les emporterait. *Réglages → Export et sauvegarde* en fait une
+copie `.json` rechargeable — c'est la sauvegarde à faire de temps en temps.
+
+La synchronisation par compte reste disponible sur `/connexion`, pour qui veut retrouver ses
+écritures depuis plusieurs appareils. Elle est facultative.
+
+---
+
 ## Le projet Supabase est déjà câblé
 
 L'application pointe sur le projet du ménage sans configuration : l'URL et la clé publishable
