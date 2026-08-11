@@ -5,11 +5,13 @@
 # ici. Celui-ci publie l'application de budget depuis ce fork, et n'entre jamais
 # en concurrence avec lui — il ne se déclenche que sur `budget-menage/**`.
 #
-# Les identifiants Supabase sont facultatifs : sans eux le site s'ouvre sur son
-# écran de configuration, et `?demo=1` fait tourner l'application entière sans
-# compte ni serveur. Les poser en secrets de dépôt suffit à activer la connexion
-# au déploiement suivant — une variable de construction n'est lue qu'à ce
-# moment-là.
+# **Pourquoi la branche `gh-pages` et non l'artefact Pages.** Publier par
+# artefact suppose que la source du site soit réglée sur « GitHub Actions »,
+# et ce réglage demande un droit d'administration qu'un jeton de workflow n'a
+# pas : la tentative est morte sur « Resource not accessible by integration ».
+# En revanche, GitHub crée le site tout seul quand une branche `gh-pages`
+# apparaît. C'est cette voie-là qui a fonctionné, et c'est donc celle que ce
+# workflow entretient.
 name: Budget ménage — Pages
 
 on:
@@ -23,12 +25,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 # Une seule publication à la fois ; on ne coupe pas celle qui est en cours,
-# pour ne pas laisser Pages dans un état à moitié déployé.
+# pour ne pas laisser la branche dans un état à moitié poussé.
 concurrency:
   group: pages-budget-menage
   cancel-in-progress: false
@@ -37,9 +37,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,42 +54,60 @@ jobs:
         run: npm test
         working-directory: budget-menage
 
-      # `configure-pages` sait activer Pages lui-même (`enablement: true`), mais
-      # la création du site demande un droit d'administration que le jeton d'un
-      # workflow n'a pas : la première tentative est morte sur
-      # « Resource not accessible by integration ». On vérifie donc d'abord, et
-      # on échoue en disant quoi faire plutôt qu'en renvoyant l'erreur brute.
-      - name: Vérifier que Pages est activé
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          code=$(curl -sS -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
-          if [ "$code" = "404" ]; then
-            echo "::error title=Pages n'est pas activé::Settings → Pages → Build and deployment → Source : « GitHub Actions », puis relancer ce workflow (Actions → Budget ménage — Pages → Run workflow)."
-            exit 1
-          fi
-          echo "Pages répond $code — on continue."
-
-      - name: Configurer Pages
-        id: pages
-        uses: actions/configure-pages@v5
-
       - name: Construire
         run: npm run build
         working-directory: budget-menage
         env:
           # Un dépôt de projet est servi sous `/<dépôt>/`, pas à la racine.
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          BASE_PATH: /${{ github.event.repository.name }}/
+          # Facultatifs : sans eux, la construction retombe sur les
+          # identifiants publics inscrits dans `src/lib/supabase.public.js`.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: budget-menage/dist
+      - name: Publier sur gh-pages
+        run: |
+          set -euo pipefail
+          # `.nojekyll` : sans lui, Jekyll ignorerait tout fichier ou dossier
+          # commençant par un souligné.
+          touch budget-menage/dist/.nojekyll
+          cd budget-menage/dist
+          git init -q
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "deploy: budget-menage construit depuis ${GITHUB_SHA::7}"
+          # La branche ne porte que le résultat de construction : son histoire
+          # n'a aucune valeur, on la remplace à chaque fois.
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Déployer
-        id: deploy
-        uses: actions/deploy-pages@v4
+      # Le déploiement de Pages est asynchrone : le push rend la main avant que
+      # le site ne serve la nouvelle version. On vérifie donc réellement, plutôt
+      # que de déclarer la publication réussie parce que le push l'a été.
+      - name: Vérifier que le site répond
+        run: |
+          set -uo pipefail
+          url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+          for essai in $(seq 1 20); do
+            code=$(curl -sS -o /tmp/page.html -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            if [ "$code" = "200" ] && grep -q 'id="root"' /tmp/page.html; then
+              echo "✓ $url répond 200 et sert l'application."
+              grep -o '<title>[^<]*</title>' /tmp/page.html || true
+              # L'application doit pointer sur un projet Supabase, sinon elle
+              # s'ouvrirait sur son écran de configuration.
+              asset=$(grep -o '/[^"]*assets/[^"]*\.js' /tmp/page.html | head -1)
+              if curl -sS --max-time 30 "https://${GITHUB_REPOSITORY_OWNER}.github.io${asset}" \
+                   | grep -qo 'supabase\.co'; then
+                echo "✓ Le bundle porte bien une URL de projet Supabase."
+              else
+                echo "::warning::Aucune URL Supabase dans le bundle : la connexion sera inactive."
+              fi
+              exit 0
+            fi
+            echo "essai $essai : $code — le déploiement n'est pas encore servi, nouvelle tentative dans 15 s"
+            sleep 15
+          done
+          echo "::error title=Le site ne répond pas::$url n'a pas servi la nouvelle version en 5 minutes."
+          exit 1
