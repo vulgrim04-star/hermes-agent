@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { LEAVES, catOf, kindOf, rootOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
+import { getTheme, setTheme } from '../lib/theme.js';
 import { fmt } from '../lib/money.js';
 import { applyBank, emptyState, normLabel } from '../lib/ledger.js';
 import { positionsAt, ORIGIN_LABELS, QUANTITY_SCALE } from '../lib/networth.js';
@@ -14,6 +15,49 @@ const TREATMENTS = [
   ['transfert-interne', 'Transfert interne'],
   ['ignorer', 'Ignorer'],
 ];
+
+const THEME_LABELS = [
+  ['auto', 'Automatique'],
+  ['light', 'Clair'],
+  ['dark', 'Sombre'],
+];
+
+/**
+ * Apparence.
+ *
+ * « Automatique » suit le réglage du téléphone ; les deux autres le
+ * contredisent délibérément. Le choix vaut pour ce navigateur seulement : c'est
+ * une préférence d'affichage, elle n'a rien à faire dans un journal comptable
+ * partagé entre appareils.
+ */
+function ThemeCard() {
+  const [theme, choose] = useState(getTheme);
+
+  return (
+    <div className="block">
+      <header>
+        <div className="grow">
+          <h3>Apparence</h3>
+          <p>Retenu dans ce navigateur, jamais synchronisé avec votre compte.</p>
+        </div>
+      </header>
+      <div className="body">
+        <div className="segmented" role="group" aria-label="Thème">
+          {THEME_LABELS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={theme === value}
+              onClick={() => choose(setTheme(value))}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Settings() {
   const data = useBudget((s) => s.data);
@@ -34,6 +78,8 @@ export default function Settings() {
   return (
     <>
       {message && <p className="note ok" style={{ marginBottom: 20 }}>{message}</p>}
+
+      <ThemeCard />
 
       <div className="block">
         <header>

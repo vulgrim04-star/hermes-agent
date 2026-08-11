@@ -78,6 +78,24 @@ export function monthBounds(period) {
   return { start: period + '-01', end: period + '-' + String(last).padStart(2, '0') };
 }
 
+/**
+ * Décale un mois `AAAA-MM` de `delta` mois, dans un sens ou dans l'autre.
+ *
+ * Le passage d'année se fait par arithmétique sur les mois plutôt que par un
+ * objet Date : `new Date(2026, -1)` fonctionne, mais fait dépendre le résultat
+ * du fuseau de la machine — un budget arrêté le 1er janvier à Fribourg ne doit
+ * pas basculer en décembre parce que le navigateur est en UTC.
+ *
+ * Rend `null` sur un mois qui n'existe pas, comme `monthBounds`.
+ */
+export function shiftMonth(period, delta) {
+  if (!monthBounds(period)) return null;
+  const [year, month] = period.split('-').map(Number);
+  const total = year * 12 + (month - 1) + delta;
+  if (total < 0) return null;
+  return `${String(Math.floor(total / 12)).padStart(4, '0')}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+
 export function dayGap(a, b) {
   return Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86400000;
 }

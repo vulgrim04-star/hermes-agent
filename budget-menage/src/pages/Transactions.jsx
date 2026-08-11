@@ -41,8 +41,9 @@ export default function Transactions() {
   return (
     <div className="block">
       <header>
+        {/* Pas de titre ici : le grand titre de l'écran dit déjà « Écritures ».
+            Le compte et le solde, eux, changent avec la recherche. */}
         <div className="grow">
-          <h3>Écritures</h3>
           <p>{rows.length} ligne(s), solde {fmt(balance)}</p>
         </div>
         <input

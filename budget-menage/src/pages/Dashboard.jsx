@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import Donut, { foldSlices } from '../components/Donut.jsx';
-import { MONTHS_SHORT, frDate, monthBounds, monthLabel } from '../lib/dates.js';
+import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
 import { kindOf, rootOf } from '../lib/categories.js';
 import { expenseByRoot, ledger, monthsAvailable, totalsOf, yearsAvailable } from '../lib/ledger.js';
@@ -36,13 +36,12 @@ export default function Dashboard() {
   return (
     <>
       <div className="block">
+        {/* La définition passe sous les chiffres : elle explique ce qu'on lit,
+            elle n'a pas à retarder la lecture. Sur téléphone, la garder en tête
+            de carte repoussait le reste à vivre hors de l'écran. */}
         <header>
           <div className="grow">
             <h3>{scale === 'mois' ? monthLabel(period) : 'Année ' + period}</h3>
-            <p>
-              Reste à vivre = revenus − dépenses − épargne. L’épargne est un emploi du revenu, pas une
-              consommation : elle a sa ligne propre et elle est déduite.
-            </p>
           </div>
           <div className="row">
             <select value={scale} onChange={(e) => setScale(e.target.value)}>
@@ -61,6 +60,10 @@ export default function Dashboard() {
           </div>
         </header>
         {scale === 'mois' ? <MonthTotals data={data} period={period} /> : <YearTotals data={data} year={period} />}
+        <p className="hint" style={{ padding: '0 18px 16px', marginTop: 14 }}>
+          Reste à vivre = revenus − dépenses − épargne. L’épargne est un emploi du revenu, pas une
+          consommation : elle a sa ligne propre et elle est déduite.
+        </p>
       </div>
 
       {scale === 'mois' ? <MonthDetail data={data} period={period} /> : <YearTable data={data} year={period} />}
@@ -68,19 +71,36 @@ export default function Dashboard() {
   );
 }
 
-function Totals({ totals, extra }) {
+/**
+ * Le reste à vivre, seul et en très grand : c'est la question qu'on se pose en
+ * ouvrant l'application, et elle mérite d'être lue sans être cherchée. Le
+ * détail qui l'explique vient juste après, plus discret.
+ *
+ * Un reste à vivre négatif passe au rouge. C'est le seul emploi du rouge ici :
+ * il ne signale pas une dépense — une dépense est normale — mais un mois où le
+ * ménage a vécu au-delà de ce qu'il a gagné.
+ */
+function Hero({ totals, comparison }) {
+  return (
+    <dl className="hero">
+      <dt>Reste à vivre</dt>
+      <dd className={totals.remaining < 0 ? 'alert' : undefined}>{fmt(totals.remaining)}</dd>
+      {comparison && (
+        <p className="delta">
+          <b>{comparison.delta >= 0 ? '+' : '−'}{fmt(Math.abs(comparison.delta))}</b>{' '}
+          par rapport à {comparison.label}
+        </p>
+      )}
+    </dl>
+  );
+}
+
+function Totals({ totals }) {
   return (
     <dl className="stats">
       <div className="stat"><dt>Revenus</dt><dd>{fmt(totals.income)}</dd></div>
       <div className="stat"><dt>Dépenses</dt><dd>{fmt(totals.expense)}</dd></div>
       <div className="stat"><dt>Épargne</dt><dd>{fmt(totals.savings)}</dd></div>
-      <div className="stat">
-        <dt>Reste à vivre</dt>
-        <dd className={totals.remaining < 0 ? 'neg' : 'pos'}>
-          {fmt(totals.remaining)}
-          {extra && <span className="sub">{extra}</span>}
-        </dd>
-      </div>
       <div className="stat">
         <dt>Taux d’épargne</dt>
         <dd>{totals.rate === null ? '—' : (totals.rate * 100).toFixed(1) + ' %'}</dd>
@@ -89,14 +109,34 @@ function Totals({ totals, extra }) {
   );
 }
 
+/**
+ * La variation ne s'affiche que si le mois précédent porte réellement des
+ * écritures. Comparer à un mois vide afficherait une envolée qui ne dit rien
+ * d'autre que « nous n'avions pas encore importé ce mois-là ».
+ */
+function comparisonWith(data, period) {
+  const previous = shiftMonth(period, -1);
+  const bounds = previous && monthBounds(previous);
+  if (!bounds) return null;
+  const totals = totalsOf(ledger(data, bounds.start, bounds.end));
+  if (!totals.income && !totals.expense && !totals.savings) return null;
+  return { totals, label: monthLabel(previous) };
+}
+
 function MonthTotals({ data, period }) {
   const { start, end } = monthBounds(period);
   const rows = ledger(data, start, end);
+  const totals = totalsOf(rows);
   const uncategorised = rows.filter((r) => !r.cat);
+  const previous = comparisonWith(data, period);
 
   return (
     <>
-      <Totals totals={totalsOf(rows)} />
+      <Hero
+        totals={totals}
+        comparison={previous && { delta: totals.remaining - previous.totals.remaining, label: previous.label }}
+      />
+      <Totals totals={totals} />
       {uncategorised.length > 0 && (
         <div className="body">
           <div className="note warn">
@@ -123,9 +163,14 @@ function MonthDetail({ data, period }) {
         <header><div className="grow"><h3>Dépenses par poste</h3></div></header>
         <div className="body">
           {slices.length ? (
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Donut slices={slices} />
-              <div className="legend" style={{ flex: '1 1 200px' }}>
+            <div className="ring-wrap">
+              <Donut
+                slices={slices}
+                size={188}
+                centre={fmt(slices.reduce((sum, s) => sum + s.value, 0))}
+                caption="dépenses"
+              />
+              <div className="legend">
                 {slices.map((slice) => (
                   <div key={slice.name}>
                     <i style={{ background: slice.color }} />
@@ -178,7 +223,26 @@ function YearTotals({ data, year }) {
   const totals = totalsOf(ledger(data, year + '-01-01', year + '-12-31'));
   const columns = yearColumns(data, year);
   const lived = columns.filter((c) => c.totals.income || c.totals.expense || c.totals.savings).length;
-  return <Totals totals={totals} extra={`${lived} mois sur 12 mouvementés`} />;
+  const previous = totalsOf(ledger(data, year - 1 + '-01-01', year - 1 + '-12-31'));
+  const hasPrevious = previous.income || previous.expense || previous.savings;
+
+  return (
+    <>
+      <Hero
+        totals={totals}
+        comparison={
+          hasPrevious
+            ? { delta: totals.remaining - previous.remaining, label: String(year - 1) }
+            : null
+        }
+      />
+      <Totals totals={totals} />
+      <p className="hint" style={{ padding: '0 18px 16px' }}>
+        {lived} mois sur 12 mouvementés. Les moyennes divisent tout de même par douze : un ménage qui
+        a importé huit mois ne doit pas lire une moyenne qui le flatte de moitié.
+      </p>
+    </>
+  );
 }
 
 function YearTable({ data, year }) {

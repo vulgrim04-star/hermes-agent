@@ -6,8 +6,9 @@ import { reconcile } from './csv.js';
 import { commitStatements, emptyState } from './ledger.js';
 import {
   bankBalanceAt, netWorthAt, netWorthSeries, pillar3aStatus, positionsAt,
-  addAsset, setValuation, clearValuation, valueFromQuantity, shiftMonth,
+  addAsset, setValuation, clearValuation, valueFromQuantity,
 } from './networth.js';
+import { shiftMonth } from './dates.js';
 import { buildXlsx, date as xdate, money as xmoney, text as xtext } from './xlsx.js';
 
 const bytes = (text) => new TextEncoder().encode(text).buffer;
@@ -304,3 +305,31 @@ describe('classeur Excel', () => {
 function edit(state, mutator) {
   return mutator(state);
 }
+
+describe('shiftMonth', () => {
+  it('recule d’un mois à l’intérieur d’une année', () => {
+    expect(shiftMonth('2026-08', -1)).toBe('2026-07');
+  });
+
+  it('franchit le passage d’année dans les deux sens', () => {
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2025-12', 1)).toBe('2026-01');
+  });
+
+  it('décale de plusieurs mois d’un coup', () => {
+    expect(shiftMonth('2026-03', -14)).toBe('2025-01');
+    expect(shiftMonth('2026-03', 10)).toBe('2027-01');
+  });
+
+  it('refuse un mois qui n’existe pas, comme monthBounds', () => {
+    expect(shiftMonth('2026-13', -1)).toBe(null);
+    expect(shiftMonth('pas-un-mois', -1)).toBe(null);
+  });
+
+  it('ne dépend pas du fuseau de la machine', () => {
+    // Le calcul est arithmétique : aucun objet Date n'intervient, donc aucun
+    // décalage possible selon l'endroit où tourne le navigateur.
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2026-12', 1)).toBe('2027-01');
+  });
+});

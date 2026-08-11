@@ -175,11 +175,6 @@ export function nextMonth(period) {
   return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
-export function shiftMonth(period, delta) {
-  const total = Number(period.slice(0, 4)) * 12 + (Number(period.slice(5, 7)) - 1) + delta;
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
-}
-
 /**
  * Enregistre la valorisation d'un mois. Quand la quantité et le cours sont
  * donnés, la valeur en est déduite ; sinon la valeur saisie fait foi. Dans les

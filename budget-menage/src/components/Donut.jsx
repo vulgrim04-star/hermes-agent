@@ -9,8 +9,15 @@
  * chiffrée dans la légende.
  */
 
-export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'];
-export const OTHER = '#898781';
+/*
+ * Teintes système d'Apple, choisies pour ne rien dire d'autre que « ceci est
+ * une part » : ni le bleu, qui ne désigne que ce qui est actionnable, ni le
+ * vert, qui ne désigne qu'un crédit. Confondre une part de camembert avec un
+ * bouton, ou un poste de dépense avec une rentrée, coûterait plus cher qu'une
+ * palette moins riche.
+ */
+export const SERIES = ['#ff9500', '#5856d6', '#00c7be', '#ff2d55', '#af52de', '#ffcc00'];
+export const OTHER = '#8e8e93';
 
 export function foldSlices(entries, limit = SERIES.length) {
   const sorted = entries.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
@@ -35,7 +42,7 @@ export function foldSlices(entries, limit = SERIES.length) {
   return slices;
 }
 
-export default function Donut({ slices, size = 168 }) {
+export default function Donut({ slices, size = 168, centre, caption }) {
   if (!slices.length) return null;
   const R = size / 2;
   const inner = R - size * 0.22;
@@ -64,6 +71,7 @@ export default function Donut({ slices, size = 168 }) {
 
   return (
     <svg
+      className="ring"
       viewBox={`${-R} ${-R} ${size} ${size}`}
       width={size}
       height={size}
@@ -71,6 +79,36 @@ export default function Donut({ slices, size = 168 }) {
       aria-label="Répartition des dépenses par poste"
     >
       {paths}
+      {/* Le creux de l'anneau ne doit pas rester vide : le total y répond à la
+          question que pose le dessin — « tout ça, ça fait combien ? ». */}
+      {centre && (
+        <text
+          className="hole"
+          x="0"
+          y="0"
+          textAnchor="middle"
+          fill="currentColor"
+          fontSize={size * 0.13}
+          fontWeight="600"
+          letterSpacing="-0.03em"
+          dy={caption ? '0' : '0.34em'}
+        >
+          {centre}
+        </text>
+      )}
+      {caption && (
+        <text
+          x="0"
+          y="0"
+          dy="1.5em"
+          textAnchor="middle"
+          fill="currentColor"
+          opacity="0.55"
+          fontSize={size * 0.075}
+        >
+          {caption}
+        </text>
+      )}
     </svg>
   );
 }

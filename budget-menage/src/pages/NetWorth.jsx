@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
+import { shiftMonth } from '../lib/dates.js';
 import { fmt, parseAmount } from '../lib/money.js';
 import { QUANTITY_SCALE, ASSET_KINDS, ORIGIN_LABELS, addAsset, netWorthSeries, pillar3aStatus,
-  positionsAt, removeAsset, setValuation, shiftMonth } from '../lib/networth.js';
+  positionsAt, removeAsset, setValuation } from '../lib/networth.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
 /**

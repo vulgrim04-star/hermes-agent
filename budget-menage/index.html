@@ -2,10 +2,28 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- `viewport-fit=cover` fait passer la page sous l'encoche et la barre
+         d'accueil de l'iPhone ; c'est la feuille de style qui rend ensuite
+         l'espace au contenu, par `env(safe-area-inset-*)`. Sans lui, une
+         application en plein écran reste bordée de deux bandes. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Teinte de la barre d'état. Réécrite au démarrage selon le thème actif
+         (voir src/lib/theme.js) : figée en clair, elle jurerait au-dessus
+         d'une application passée en sombre. -->
+    <meta name="theme-color" content="#f2f2f7" />
+
+    <!-- Écran d'accueil iOS. Safari ignore le manifeste pour l'icône : il lui
+         faut un PNG, et il ne lit pas le SVG. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Budget" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>Budget du ménage</title>
   </head>
   <body>

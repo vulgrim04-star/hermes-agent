@@ -1,0 +1,36 @@
+<!--
+  Icône d'écran d'accueil.
+
+  Une balance à fléau : les deux plateaux d'une comptabilité en partie double,
+  à l'équilibre. C'est le geste que fait l'application — prouver que
+  « ouverture + mouvements = clôture » — et non un symbole d'argent, qui ne
+  dirait rien de plus qu'un billet de banque.
+
+  Dessinée en traits épais et en formes pleines : à 60 pixels de côté sur un
+  écran d'accueil, un trait fin disparaît.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b96ff"/>
+      <stop offset="1" stop-color="#0057d8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#fond)"/>
+
+  <g fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Le mât et son socle. -->
+    <path d="M256 132v246"/>
+    <path d="M196 378h120"/>
+    <!-- Le fléau, strictement horizontal : la balance est à l'équilibre. -->
+    <path d="M124 168h264"/>
+    <!-- Les suspentes, puis les deux plateaux, de même taille. -->
+    <path d="M124 168l-46 92M124 168l46 92"/>
+    <path d="M388 168l-46 92M388 168l46 92"/>
+    <path d="M64 260h120a60 60 0 0 1-120 0Z" fill="#fff"/>
+    <path d="M328 260h120a60 60 0 0 1-120 0Z" fill="#fff"/>
+  </g>
+
+  <circle cx="256" cy="132" r="21" fill="#fff"/>
+</svg>
