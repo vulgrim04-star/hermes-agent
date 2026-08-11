@@ -41,7 +41,7 @@ export default function App() {
   // écritures restent dans ce navigateur (voir lib/demo.js).
   if (isDemo()) {
     return (
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Shell demo />
       </BrowserRouter>
     );
@@ -52,7 +52,7 @@ export default function App() {
   if (!ready) return <div className="auth"><p className="muted">Chargement…</p></div>;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       {session ? <Shell /> : (
         <Routes>
           <Route path="/mot-de-passe" element={<Password />} />

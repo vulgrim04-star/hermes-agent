@@ -1,0 +1,83 @@
+# Publication de `budget-menage/` sur GitHub Pages.
+#
+# Le job `deploy-docs` de `deploy-site.yml` est verrouillé sur le dépôt amont
+# (`if: github.repository == 'NousResearch/hermes-agent'`) : il ne s'exécute pas
+# ici. Celui-ci publie l'application de budget depuis ce fork, et n'entre jamais
+# en concurrence avec lui — il ne se déclenche que sur `budget-menage/**`.
+#
+# Les identifiants Supabase sont facultatifs : sans eux le site s'ouvre sur son
+# écran de configuration, et `?demo=1` fait tourner l'application entière sans
+# compte ni serveur. Les poser en secrets de dépôt suffit à activer la connexion
+# au déploiement suivant — une variable de construction n'est lue qu'à ce
+# moment-là.
+name: Budget ménage — Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/swiss-household-budget-app-5frk7c
+    paths:
+      - 'budget-menage/**'
+      - '.github/workflows/budget-menage-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une seule publication à la fois ; on ne coupe pas celle qui est en cours,
+# pour ne pas laisser Pages dans un état à moitié déployé.
+concurrency:
+  group: pages-budget-menage
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: budget-menage/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+        working-directory: budget-menage
+
+      - name: Tests
+        run: npm test
+        working-directory: budget-menage
+
+      # `enablement: true` active Pages si le dépôt ne l'a pas encore : c'est ce
+      # qui permet à ce workflow de se suffire à lui-même.
+      - name: Configurer Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Construire
+        run: npm run build
+        working-directory: budget-menage
+        env:
+          # Un dépôt de projet est servi sous `/<dépôt>/`, pas à la racine.
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: budget-menage/dist
+
+      - name: Déployer
+        id: deploy
+        uses: actions/deploy-pages@v4

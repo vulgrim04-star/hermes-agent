@@ -1,3 +1,6 @@
+import { copyFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -49,12 +52,30 @@ function assertAnonKey(key) {
   return key;
 }
 
+/**
+ * GitHub Pages n'a pas de réécriture : une URL profonde comme `/ecritures`
+ * tomberait sur son 404. Servir la même page en 404.html fait démarrer
+ * l'application, qui reprend alors la route demandée.
+ */
+function spaFallback() {
+  return {
+    name: 'spa-fallback-404',
+    closeBundle() {
+      const from = resolve('dist/index.html');
+      if (existsSync(from)) copyFileSync(from, resolve('dist/404.html'));
+    },
+  };
+}
+
 export default defineConfig(() => {
   const url = pick(process.env, 'SUPABASE_URL');
   const key = assertAnonKey(pick(process.env, 'SUPABASE_ANON_KEY'));
 
   return {
-    plugins: [react()],
+    // GitHub Pages sert un dépôt de projet sous `/<dépôt>/` ; Vercel sert à la
+    // racine. La base se règle donc à la construction plutôt que d'être figée.
+    base: process.env.BASE_PATH || '/',
+    plugins: [react(), spaFallback()],
     define: {
       __SUPABASE_URL__: JSON.stringify(url),
       __SUPABASE_ANON_KEY__: JSON.stringify(key),
