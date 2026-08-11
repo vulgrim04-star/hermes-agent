@@ -83,31 +83,51 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Le déploiement de Pages est asynchrone : le push rend la main avant que
-      # le site ne serve la nouvelle version. On vérifie donc réellement, plutôt
-      # que de déclarer la publication réussie parce que le push l'a été.
-      - name: Vérifier que le site répond
+      # Le déploiement de Pages est asynchrone : le push rend la main bien avant
+      # que le site ne serve la nouvelle version. Vérifier que l'adresse répond
+      # ne prouverait donc rien — elle répondait déjà avant ce workflow.
+      #
+      # On attend que la page serve **le fichier produit par cette
+      # construction-ci**, dont le nom porte une empreinte du contenu. C'est ce
+      # qui rend le contrôle capable d'échouer, donc capable de servir.
+      - name: Vérifier que le site sert cette construction
         run: |
           set -uo pipefail
+          attendu=$(grep -o 'assets/[^"]*\.js' budget-menage/dist/index.html | head -1)
           url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+          echo "Attendu : $attendu"
+
           for essai in $(seq 1 20); do
             code=$(curl -sS -o /tmp/page.html -w '%{http_code}' --max-time 20 "$url" || echo 000)
-            if [ "$code" = "200" ] && grep -q 'id="root"' /tmp/page.html; then
-              echo "✓ $url répond 200 et sert l'application."
+            if [ "$code" = "200" ] && grep -q "$attendu" /tmp/page.html; then
+              echo "✓ $url sert bien cette construction."
               grep -o '<title>[^<]*</title>' /tmp/page.html || true
-              # L'application doit pointer sur un projet Supabase, sinon elle
-              # s'ouvrirait sur son écran de configuration.
-              asset=$(grep -o '/[^"]*assets/[^"]*\.js' /tmp/page.html | head -1)
-              if curl -sS --max-time 30 "https://${GITHUB_REPOSITORY_OWNER}.github.io${asset}" \
-                   | grep -qo 'supabase\.co'; then
-                echo "✓ Le bundle porte bien une URL de projet Supabase."
+
+              # Sans identifiants, l'application s'ouvrirait sur son écran de
+              # configuration au lieu d'une connexion. On écrit dans un fichier
+              # plutôt que de brancher grep sur un tuyau : `grep -q` sort au
+              # premier résultat, curl meurt alors d'un SIGPIPE (erreur 23) et
+              # le contrôle se met à échouer pour une raison qui n'est pas la
+              # sienne.
+              if curl -sS -o /tmp/app.js --max-time 30 "${url}${attendu}"; then
+                if grep -q 'supabase\.co' /tmp/app.js; then
+                  echo "✓ Le bundle porte une URL de projet Supabase — la connexion est active."
+                else
+                  echo "::error::Aucune URL Supabase dans le bundle : la connexion serait inactive."
+                  exit 1
+                fi
+                if grep -qE 'sb_secret_[A-Za-z0-9]|"service_role"' /tmp/app.js; then
+                  echo "::error title=Clé privée publiée::Le bundle servi contient une clé privée."
+                  exit 1
+                fi
               else
-                echo "::warning::Aucune URL Supabase dans le bundle : la connexion sera inactive."
+                echo "::error::Le fichier $attendu n'a pas pu être téléchargé."
+                exit 1
               fi
               exit 0
             fi
-            echo "essai $essai : $code — le déploiement n'est pas encore servi, nouvelle tentative dans 15 s"
+            echo "essai $essai : $code — cette construction n'est pas encore servie, nouvelle tentative dans 15 s"
             sleep 15
           done
-          echo "::error title=Le site ne répond pas::$url n'a pas servi la nouvelle version en 5 minutes."
+          echo "::error title=Déploiement non servi::$url n'a pas servi $attendu en 5 minutes."
           exit 1
