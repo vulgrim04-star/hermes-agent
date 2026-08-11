@@ -66,6 +66,32 @@ lien reçu, se connecter.
 
 ---
 
+## Variante : GitHub Pages, sans créer de compte Vercel
+
+Le dépôt porte un workflow ([`.github/workflows/budget-menage-pages.yml`](../.github/workflows/budget-menage-pages.yml))
+qui construit et publie ce dossier à chaque poussée. Il n'y a rien à installer : la construction
+tourne sur les machines de GitHub.
+
+**Une seule chose à faire, une fois** : *Settings → Pages → Build and deployment → Source :*
+**GitHub Actions**. Activer Pages demande un droit d'administration sur le dépôt, qu'un jeton de
+workflow n'a pas — le workflow ne peut donc pas le faire à votre place. Il le vérifie au démarrage
+et s'arrête en le disant plutôt que de renvoyer l'erreur brute de l'API.
+
+Relancer ensuite depuis *Actions → « Budget ménage — Pages » → Run workflow*. L'adresse publiée est
+`https://<compte>.github.io/<dépôt>/`.
+
+La connexion est facultative ici aussi : sans identifiants, le site s'ouvre sur son écran de
+configuration et `?demo=1` fait tourner l'application entière. Pour l'activer, poser
+`SUPABASE_URL` et `SUPABASE_ANON_KEY` en *secrets de dépôt* (*Settings → Secrets and variables →
+Actions*) et relancer le workflow — une variable de construction n'est lue qu'à ce moment-là.
+
+> Pages sert le site sous `/<dépôt>/` et non à la racine : la base est réglée à la construction
+> (`BASE_PATH`), et `index.html` est recopié en `404.html` parce que Pages ne réécrit pas les URL —
+> sans quoi un lien profond comme `/ecritures` tomberait sur le 404 de GitHub au lieu de démarrer
+> l'application.
+
+---
+
 ## Essayer sans rien brancher
 
 `https://<adresse>/?demo=1` ouvre l'application **sans compte** : les écritures restent dans le
