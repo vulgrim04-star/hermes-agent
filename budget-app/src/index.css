@@ -1,9 +1,132 @@
 @import 'tailwindcss';
 
+/* ============================================================================
+   Même système visuel que l'application en ligne : gris froids d'iOS, bleu pour
+   ce qui est actionnable, vert pour les seuls crédits, rouge pour ce qui ne va
+   pas.
+
+   **Comment le thème bascule sans toucher aux 4 600 lignes de balisage.** Les
+   utilitaires de Tailwind ne portent pas une couleur mais une variable :
+   `text-slate-500` compile en `color: var(--color-slate-500)`. En rebranchant
+   ces variables sur des jetons sémantiques, et en redéfinissant ces jetons sous
+   le thème sombre, toute l'application bascule d'un bloc — sans réécrire une
+   seule classe.
+
+   L'échelle est donc lue comme une échelle de *contraste*, pas de teinte : 50
+   est le fond, 900 est le texte. En sombre, les deux extrémités s'échangent.
+   ========================================================================= */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --rule: #e5e5ea;
+  --rule-2: #d1d1d6;
+  --rule-3: #c7c7cc;
+  --ink: #1c1c1e;
+  --ink-2: #6c6c70;
+  --ink-3: #a1a1a6;
+  --ink-4: #48484a;
+  --accent: #007aff;
+  --on-accent: #ffffff;
+
+  /* Sens comptable. Le débit vaut délibérément la couleur du texte : une
+     dépense est normale, elle n'a pas à crier. */
+  --credit: #248a3d;
+  --credit-bg: #e8f8ed;
+  --warn: #a05a00;
+  --warn-bg: #fff4e5;
+  --err: #d70015;
+  --err-bg: #ffeceb;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 16px rgb(0 0 0 / 4%);
+  --tabbar: 50px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --rule: #38383a;
+    --rule-2: #48484a;
+    --rule-3: #48484a;
+    --ink: #ffffff;
+    --ink-2: #98989f;
+    --ink-3: #7c7c80;
+    --ink-4: #aeaeb2;
+    --accent: #0a84ff;
+    --credit: #30d158;
+    --credit-bg: #10240f;
+    --warn: #ff9f0a;
+    --warn-bg: #2b1c00;
+    --err: #ff453a;
+    --err-bg: #2c0f0d;
+    --shadow: none;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --rule: #38383a;
+  --rule-2: #48484a;
+  --rule-3: #48484a;
+  --ink: #ffffff;
+  --ink-2: #98989f;
+  --ink-3: #7c7c80;
+  --ink-4: #aeaeb2;
+  --accent: #0a84ff;
+  --credit: #30d158;
+  --credit-bg: #10240f;
+  --warn: #ff9f0a;
+  --warn-bg: #2b1c00;
+  --err: #ff453a;
+  --err-bg: #2c0f0d;
+  --shadow: none;
+}
+
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+
+  /* L'échelle de gris, rebranchée. */
+  --color-white: var(--surface);
+  --color-slate-50: var(--bg);
+  --color-slate-100: var(--rule);
+  --color-slate-200: var(--rule-2);
+  --color-slate-300: var(--rule-3);
+  --color-slate-400: var(--ink-3);
+  --color-slate-500: var(--ink-2);
+  --color-slate-600: var(--ink-4);
+  --color-slate-700: var(--ink);
+  --color-slate-800: var(--ink);
+  --color-slate-900: var(--ink);
+
+  /* Les teintes de sens, ramenées aux couleurs système d'Apple. */
+  --color-red-50: var(--err-bg);
+  --color-red-100: var(--err-bg);
+  --color-red-200: var(--err);
+  --color-red-300: var(--err);
+  --color-red-600: var(--err);
+  --color-red-700: var(--err);
+  --color-red-800: var(--err);
+  --color-emerald-100: var(--credit-bg);
+  --color-emerald-700: var(--credit);
+  --color-emerald-800: var(--credit);
+  --color-amber-50: var(--warn-bg);
+  --color-amber-100: var(--warn-bg);
+  --color-amber-200: var(--warn);
+  --color-amber-700: var(--warn);
+  --color-amber-800: var(--warn);
+  --color-amber-900: var(--warn);
+  --color-blue-500: var(--accent);
+  --color-blue-600: var(--accent);
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 /* Les montants s'alignent par la colonne : chiffres à chasse fixe. */
@@ -23,5 +146,91 @@ table td:last-child {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Le texte posé sur l'accent reste blanc dans les deux thèmes : `text-white`
+   suit le fond des cartes et virerait au sombre sur un bouton bleu. */
+.on-accent {
+  color: var(--on-accent);
+}
+
+/* -------------------------------------------------------------- coquille */
+
+/* Grand titre qui se replie, comme en ligne. */
+.largetitle {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.chrome {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.tabbar {
+  padding-bottom: env(safe-area-inset-bottom);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.tabbar a {
+  min-height: var(--tabbar);
+}
+
+.count {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  margin-left: 5px;
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 980px;
+  background: var(--err);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--rule);
+}
+.segmented button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Les icônes tirent leur taille de leur contexte : grandes sous le pouce,
+   discrètes à la souris. */
+.tabbar svg { width: 26px; height: 26px; }
+@media (min-width: 640px) { .tabbar svg { width: 18px; height: 18px; } }
+header svg { width: 24px; height: 24px; }

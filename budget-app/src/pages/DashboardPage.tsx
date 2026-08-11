@@ -82,7 +82,31 @@ function MonthlyView() {
           </select>
         }
       >
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        {/* Le reste à vivre, seul et en grand : c'est la question qu'on se pose
+            en ouvrant l'application, et elle ne doit pas être cherchée parmi
+            quatre indicateurs de même poids. Le rouge n'apparaît que sur un
+            mois vécu au-delà de ce qui est entré. */}
+        <dl className="pb-6 pt-2 text-center">
+          <dt className="text-[15px] text-slate-500">Reste à vivre</dt>
+          <dd
+            className={`mt-1 text-[clamp(40px,13vw,56px)] font-bold leading-none tracking-[-0.04em] tabular ${
+              totals.remainingCents < 0 ? 'text-red-700' : ''
+            }`}
+          >
+            {formatCents(totals.remainingCents)}
+          </dd>
+          {comparable && (
+            <p className="mt-2 text-sm text-slate-500">
+              <span className="font-semibold">
+                {totals.remainingCents - previous.totals.remainingCents >= 0 ? '+' : '−'}
+                {formatCents(Math.abs(totals.remainingCents - previous.totals.remainingCents))}
+              </span>{' '}
+              par rapport à la période précédente
+            </p>
+          )}
+        </dl>
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Stat
             label="Revenus"
             comparable={comparable}
@@ -104,13 +128,6 @@ function MonthlyView() {
             cents={totals.savingsCents}
             previousCents={previous.totals.savingsCents}
             tone="positive"
-          />
-          <Stat
-            label="Reste à vivre"
-            comparable={comparable}
-            cents={totals.remainingCents}
-            previousCents={previous.totals.remainingCents}
-            tone={totals.remainingCents < 0 ? 'negative' : 'positive'}
           />
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Taux d’épargne</p>

@@ -14,9 +14,9 @@ export function Card({
   actions?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <section className="rounded-lg bg-white shadow-[0_1px_2px_rgb(0_0_0/6%),0_4px_16px_rgb(0_0_0/4%)]">
       {(title !== undefined || actions !== undefined) && (
-        <header className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-3">
+        <header className="flex flex-wrap items-center gap-3 px-5 pt-4">
           <div>
             {title !== undefined && <h2 className="font-semibold">{title}</h2>}
             {description !== undefined && (
@@ -33,15 +33,21 @@ export function Card({
 
 type Variant = 'default' | 'primary' | 'danger' | 'ghost';
 
+/*
+ * Le bleu ne désigne qu'une chose : ce sur quoi on peut appuyer. Le bouton
+ * ordinaire est donc un fond neutre et un libellé bleu, le bouton principal un
+ * aplat bleu — la hiérarchie tient à la surface, pas à la teinte.
+ */
 const VARIANTS: Record<Variant, string> = {
-  default: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-  primary: 'bg-slate-900 text-white hover:bg-slate-700',
-  danger: 'border border-red-300 bg-white text-red-700 hover:bg-red-50',
-  ghost: 'text-slate-500 hover:bg-slate-100',
+  default: 'bg-slate-100 text-blue-600 hover:bg-slate-200',
+  primary: 'bg-blue-600 on-accent hover:brightness-110',
+  danger: 'text-red-700 hover:bg-red-50',
+  ghost: 'text-blue-600 hover:bg-slate-100',
 };
 
+/* 44 px de haut : la plus petite cible qu'un pouce vise sans se tromper. */
 const CONTROL =
-  'inline-block rounded-md px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-md px-4 text-[15px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40';
 
 export function Button({
   variant = 'default',
@@ -82,12 +88,20 @@ export function Field({
   );
 }
 
+/* 16 px au minimum : en deçà, Safari zoome la page à la mise au point du champ. */
 export const inputClass =
-  'rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-slate-500';
+  'min-h-[44px] rounded-md border border-slate-200 bg-white px-3 text-[16px] outline-none focus:border-blue-600';
 
-/** Montant aligné et coloré selon le sens : rouge en sortie, vert en entrée. */
+/**
+ * Montant aligné, et coloré seulement quand la couleur dit quelque chose.
+ *
+ * Le vert marque un crédit — ils sont rares, on les cherche. Un débit garde la
+ * couleur du texte : c'est le cas ordinaire d'un relevé, et le peindre en rouge
+ * userait le rouge jusqu'à ce qu'il ne signale plus rien. Le rouge reste pour
+ * ce qui ne va pas : un rapprochement qui ne boucle pas, une fortune négative.
+ */
 export function Amount({ cents, className = '' }: { cents: number; className?: string }) {
-  const tone = cents < 0 ? 'text-red-700' : cents > 0 ? 'text-emerald-700' : 'text-slate-500';
+  const tone = cents > 0 ? 'text-emerald-700 font-medium' : cents === 0 ? 'text-slate-400' : '';
   return <span className={`tabular ${tone} ${className}`}>{formatCents(cents)}</span>;
 }
 
@@ -99,13 +113,15 @@ export function Badge({
   children: React.ReactNode;
 }) {
   const tones: Record<string, string> = {
-    neutral: 'bg-slate-100 text-slate-600',
+    neutral: 'bg-slate-100 text-slate-500',
     ok: 'bg-emerald-100 text-emerald-800',
     warn: 'bg-amber-100 text-amber-800',
     error: 'bg-red-100 text-red-800',
   };
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>
+    <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-medium ${tones[tone]}`}>
+      {children}
+    </span>
   );
 }
 
