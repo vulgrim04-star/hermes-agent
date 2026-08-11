@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { assertAnonKey } from '../../vite.config.js';
+import { explainSyncError } from './sync-error.js';
 
 /** Fabrique un JWT non signé portant le rôle voulu — seule la charge utile est lue. */
 function jwt(role) {
@@ -56,5 +57,40 @@ describe('assertAnonKey', () => {
     // affirmer, donc on laisse passer plutôt que de bloquer une construction
     // légitime. Supabase refusera la clé de toute façon.
     expect(assertAnonKey('aaa.bbb.ccc')).toBe('aaa.bbb.ccc');
+  });
+});
+
+describe('explainSyncError', () => {
+  it('reconnaît la table absente au code Postgres', () => {
+    const r = explainSyncError('relation "public.budget_state" does not exist');
+    expect(r.titre).toMatch(/n’existe pas encore/);
+    expect(r.remede).toMatch(/schema\.sql/);
+  });
+
+  it('reconnaît la formulation de PostgREST, qui ne porte pas le code', () => {
+    const r = explainSyncError("Could not find the table 'public.budget_state' in the schema cache");
+    expect(r.remede).toMatch(/schema\.sql/);
+  });
+
+  it('distingue les policies manquantes de la table manquante', () => {
+    const r = explainSyncError('new row violates row-level security policy for table "budget_state"');
+    expect(r.titre).toMatch(/règles d’accès/);
+    expect(r.remede).toMatch(/policies\.sql/);
+    expect(r.remede).not.toMatch(/schema\.sql/);
+  });
+
+  it('reconnaît une panne réseau et dit de ne pas recharger', () => {
+    expect(explainSyncError('TypeError: Failed to fetch').remede).toMatch(/rechargez/);
+  });
+
+  it('n’invente pas de remède pour une cause inconnue', () => {
+    const r = explainSyncError('quelque chose d’inattendu');
+    expect(r.titre).toMatch(/n’ont pas été enregistrées/);
+    expect(r.remede).toBe('');
+  });
+
+  it('supporte un message absent sans lever', () => {
+    expect(() => explainSyncError(undefined)).not.toThrow();
+    expect(explainSyncError(null).remede).toBe('');
   });
 });

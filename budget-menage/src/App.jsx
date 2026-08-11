@@ -11,6 +11,7 @@ import {
 import { configured } from './lib/supabaseClient.js';
 import { isDemo, leaveDemo } from './lib/demo.js';
 import { initTheme } from './lib/theme.js';
+import { explainSyncError } from './lib/sync-error.js';
 import { initAuth, signOut, useAuth } from './store/useAuth.js';
 import { loadForUser, useBudget } from './store/useBudget.js';
 import { pendingCount } from './lib/ledger.js';
@@ -119,6 +120,7 @@ function Shell({ demo = false }) {
   const data = useBudget((s) => s.data);
   const loading = useBudget((s) => s.loading);
   const sync = useBudget((s) => s.sync);
+  const error = useBudget((s) => s.error);
   const email = useAuth((s) => s.session?.user?.email);
   const pending = pendingCount(data);
   const location = useLocation();
@@ -186,6 +188,7 @@ function Shell({ demo = false }) {
 
       <main className="wrap">
         <h1 className="largetitle">{title}</h1>
+        {!demo && sync === 'echec' && <SyncAlert message={error} />}
         {loading ? (
           <p className="muted">Chargement de vos écritures…</p>
         ) : (
@@ -202,6 +205,31 @@ function Shell({ demo = false }) {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * L'échec d'enregistrement, dit en toutes lettres et sur tout écran.
+ *
+ * C'est le pire mode de défaillance de ce produit : l'import affiche des
+ * totaux justes, on les croit acquis, et le rechargement suivant les efface.
+ * La pastille discrète de l'en-tête ne suffisait pas — elle était même masquée
+ * sur téléphone, où l'application est le plus utilisée. Une erreur qu'on ne
+ * voit pas est une erreur qui ment.
+ */
+function SyncAlert({ message }) {
+  const { titre, remede } = explainSyncError(message);
+  return (
+    <div className="note err" role="alert" style={{ marginBottom: 18 }}>
+      <strong>{titre}</strong>
+      <p style={{ marginTop: 6 }}>
+        {remede || message}
+      </p>
+      <p style={{ marginTop: 6 }}>
+        Ce que vous voyez à l’écran n’est pas perdu tant que vous ne rechargez pas. Vous pouvez le
+        mettre à l’abri par <em>Réglages → Export et sauvegarde</em>.
+      </p>
+    </div>
   );
 }
 
