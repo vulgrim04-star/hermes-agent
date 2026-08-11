@@ -57,13 +57,28 @@ jobs:
         run: npm test
         working-directory: budget-menage
 
-      # `enablement: true` active Pages si le dépôt ne l'a pas encore : c'est ce
-      # qui permet à ce workflow de se suffire à lui-même.
+      # `configure-pages` sait activer Pages lui-même (`enablement: true`), mais
+      # la création du site demande un droit d'administration que le jeton d'un
+      # workflow n'a pas : la première tentative est morte sur
+      # « Resource not accessible by integration ». On vérifie donc d'abord, et
+      # on échoue en disant quoi faire plutôt qu'en renvoyant l'erreur brute.
+      - name: Vérifier que Pages est activé
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
+          if [ "$code" = "404" ]; then
+            echo "::error title=Pages n'est pas activé::Settings → Pages → Build and deployment → Source : « GitHub Actions », puis relancer ce workflow (Actions → Budget ménage — Pages → Run workflow)."
+            exit 1
+          fi
+          echo "Pages répond $code — on continue."
+
       - name: Configurer Pages
         id: pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Construire
         run: npm run build
