@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { analyseFile } from './analyse.js';
 import { analyseMt940, looksLikeMt940, parseBalanceLine, parseEntryLine, parseNarrative } from './mt940.js';
 import { reconcile } from './csv.js';
-import { commitStatements, emptyState } from './ledger.js';
+import { accountBalances, commitStatements, emptyState } from './ledger.js';
 import {
   bankBalanceAt, netWorthAt, netWorthSeries, pillar3aStatus, positionsAt,
   addAsset, setValuation, clearValuation, valueFromQuantity,
@@ -361,5 +361,68 @@ describe('analyseFile — fichiers qui ne sont pas des relevés', () => {
     );
     const r = analyseFile(csv.buffer, 'releve.csv');
     expect(r.format).toBe('csv');
+  });
+});
+
+describe('soldes par compte', () => {
+  function avecReleve() {
+    const state = emptyState();
+    commitStatements(state, analyseFile(bytes(MT940), 'releve.sta').statements);
+    return state;
+  }
+
+  it('rend le solde du relevé rapproché, pas le cumul des mouvements', () => {
+    const state = avecReleve();
+    const { comptes, total } = accountBalances(state, '2026-03');
+    expect(comptes).toHaveLength(1);
+    // Le relevé ouvre à 10'000 et clôt à 14'610 ; les deux mouvements importés
+    // ne totalisent que 4'610. Confondre les deux, c'est perdre l'ouverture.
+    expect(comptes[0].cumul).toBe(461_000);
+    expect(comptes[0].solde).toBe(1_461_000);
+    expect(comptes[0].origine).toBe('releve');
+    expect(total).toBe(1_461_000);
+  });
+
+  it('refuse d’inventer un solde pour un compte sans relevé soldé', () => {
+    const state = emptyState();
+    state.accounts.CARTE = { key: 'CARTE', label: 'Carte ****7648' };
+    state.tx.push({ id: 1, acc: 'CARTE', date: '2026-03-10', cents: -8740,
+      label: 'Coop', norm: 'COOP', cat: null, transfer: 0 });
+
+    const { comptes, total, inconnus, etablis } = accountBalances(state, '2026-03');
+    expect(comptes[0].solde).toBeNull();
+    expect(comptes[0].origine).toBe('mouvements');
+    expect(comptes[0].cumul).toBe(-8740);
+    // Un compte inconnu ne doit pas entrer dans le total en valant zéro.
+    expect(total).toBe(0);
+    expect(etablis).toBe(0);
+    expect(inconnus).toBe(1);
+  });
+
+  it('n’additionne que les soldes établis, et dit combien il en laisse de côté', () => {
+    const state = avecReleve();
+    state.accounts.CARTE = { key: 'CARTE', label: 'Carte ****7648' };
+    state.tx.push({ id: 999, acc: 'CARTE', date: '2026-03-10', cents: -8740,
+      label: 'Coop', norm: 'COOP', cat: null, transfer: 0 });
+
+    const { total, etablis, inconnus } = accountBalances(state, '2026-03');
+    expect(total).toBe(1_461_000);
+    expect(etablis).toBe(1);
+    expect(inconnus).toBe(1);
+  });
+
+  it('ne compte pas les mouvements postérieurs au mois demandé', () => {
+    const state = avecReleve();
+    state.tx.push({ id: 500, acc: 'CH5604835012345678009', date: '2026-04-15',
+      cents: -100_000, label: 'Avril', norm: 'AVRIL', cat: null, transfer: 0 });
+    expect(accountBalances(state, '2026-03').comptes[0].cumul).toBe(461_000);
+    expect(accountBalances(state, '2026-04').comptes[0].solde).toBe(1_361_000);
+  });
+
+  it('rend une liste vide sur un journal vierge, sans lever', () => {
+    const vide = accountBalances(emptyState());
+    expect(vide.comptes).toEqual([]);
+    expect(vide.total).toBe(0);
+    expect(vide.mois).toBeNull();
   });
 });

@@ -15,6 +15,7 @@
 
 import { BANK_MAP_SEED, kindOf, rootOf } from './categories.js';
 import { dayGap, monthBounds } from './dates.js';
+import { bankBalanceAt } from './networth.js';
 
 export function normLabel(label) {
   return String(label)
@@ -261,6 +262,56 @@ export function expenseByRoot(rows) {
     byRoot.set(name, entry);
   }
   return [...byRoot.values()];
+}
+
+/**
+ * Solde de chaque compte, et solde total.
+ *
+ * **La somme des mouvements importés n'est pas un solde.** C'est la distinction
+ * qui compte ici : un ménage qui importe huit mois de relevés lirait sinon un
+ * « solde » qui n'est que le cumul de ces huit mois, alors que le compte
+ * existait avant. L'écart peut se chiffrer en dizaines de milliers de francs.
+ *
+ * On ne rend donc un solde que lorsqu'un relevé soldé permet de l'établir —
+ * `bankBalanceAt` part du solde de clôture rapproché le plus proche et y
+ * applique les mouvements postérieurs. À défaut, le compte est rendu avec
+ * `solde: null` et le cumul de ses mouvements à part, nommé pour ce qu'il est.
+ *
+ * Le total additionne les seuls soldes établis, et dit combien de comptes il a
+ * dû laisser de côté : un total qui engloberait silencieusement des comptes
+ * inconnus serait faux sans le dire.
+ */
+export function accountBalances(state, period) {
+  const mois = period || monthsAvailable(state)[0] || null;
+  const bounds = mois ? monthBounds(mois) : null;
+
+  const comptes = Object.values(state.accounts).map((compte) => {
+    const mouvements = state.tx.filter(
+      (t) => t.acc === compte.key && (!bounds || t.date <= bounds.end),
+    );
+    const cumul = mouvements.reduce((somme, t) => somme + t.cents, 0);
+    const solde = bounds ? bankBalanceAt(state, compte.key, mois) : null;
+
+    return {
+      key: compte.key,
+      label: compte.label || compte.key,
+      solde,
+      origine: solde === null ? 'mouvements' : 'releve',
+      cumul,
+      ecritures: mouvements.length,
+    };
+  });
+
+  comptes.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+
+  const etablis = comptes.filter((c) => c.solde !== null);
+  return {
+    comptes,
+    total: etablis.reduce((somme, c) => somme + c.solde, 0),
+    etablis: etablis.length,
+    inconnus: comptes.length - etablis.length,
+    mois,
+  };
 }
 
 export function pendingCount(state) {
