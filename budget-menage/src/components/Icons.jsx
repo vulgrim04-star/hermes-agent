@@ -73,6 +73,15 @@ export const IconImport = (p) => (
   </Glyph>
 );
 
+/** Tiers — une devanture de commerçant. */
+export const IconPayees = (p) => (
+  <Glyph {...p}>
+    <path d="M4.6 9.5h14.8v8.6a1.9 1.9 0 0 1-1.9 1.9H6.5a1.9 1.9 0 0 1-1.9-1.9Z" />
+    <path d="M3.4 9.5 5 4.6a.8.8 0 0 1 .8-.6h12.4a.8.8 0 0 1 .8.6l1.6 4.9" />
+    <path d="M9.6 20v-5.2h4.8V20" />
+  </Glyph>
+);
+
 /** Réglages. */
 export const IconSettings = (p) => (
   <Glyph {...p}>

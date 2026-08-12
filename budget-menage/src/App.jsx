@@ -19,6 +19,7 @@ import {
   IconDashboard,
   IconImport,
   IconLedger,
+  IconPayees,
   IconReview,
   IconSettings,
   IconWealth,
@@ -30,18 +31,24 @@ import Import from './pages/Import.jsx';
 import NetWorth from './pages/NetWorth.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Transactions from './pages/Transactions.jsx';
+import Tiers from './pages/Tiers.jsx';
 import Review from './pages/Review.jsx';
 import Settings from './pages/Settings.jsx';
 
 /*
- * Cinq onglets dans la barre du bas, et pas six : au-delà, les cibles
- * deviennent plus étroites que le pouce qui les vise. Les Réglages, qu'on
- * ouvre rarement, passent dans l'en-tête.
+ * Six onglets dans la barre du bas — un de plus que ce qu'iOS recommande.
+ *
+ * Le compromis est assumé : sur un iPhone de 393 points, six cibles font 65
+ * points de large, ce qui reste au-dessus des 44 points minimum. Les Réglages,
+ * qu'on ouvre rarement, restent dans l'en-tête. Si la barre devait s'encombrer
+ * davantage, c'est l'Import qui la quitterait : on importe une fois par mois,
+ * on consulte tous les jours.
  */
 const TABS = [
   { to: '/', label: 'Tableau de bord', short: 'Budget', end: true, Icon: IconDashboard },
   { to: '/ecritures', label: 'Écritures', short: 'Écritures', Icon: IconLedger },
   { to: '/revision', label: 'Révision', short: 'Révision', badge: true, Icon: IconReview },
+  { to: '/tiers', label: 'Tiers', short: 'Tiers', Icon: IconPayees },
   { to: '/patrimoine', label: 'Patrimoine', short: 'Patrimoine', Icon: IconWealth },
   { to: '/import', label: 'Import', short: 'Import', Icon: IconImport },
 ];
@@ -52,6 +59,7 @@ const TITLES = {
   '/': 'Tableau de bord',
   '/ecritures': 'Écritures',
   '/revision': 'Révision',
+  '/tiers': 'Tiers',
   '/patrimoine': 'Patrimoine',
   '/import': 'Import',
   '/reglages': 'Réglages',
@@ -197,6 +205,7 @@ function Shell({ local = false }) {
             <Route path="/" element={<Dashboard />} />
             <Route path="/ecritures" element={<Transactions />} />
             <Route path="/revision" element={<Review />} />
+            <Route path="/tiers" element={<Tiers />} />
             <Route path="/patrimoine" element={<NetWorth />} />
             <Route path="/import" element={<Import />} />
             <Route path="/reglages" element={<Settings />} />

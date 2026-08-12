@@ -6,6 +6,7 @@ import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../li
 import { fmt } from '../lib/money.js';
 import { kindOf, rootOf } from '../lib/categories.js';
 import { expenseByRoot, ledger, monthsAvailable, totalsOf, yearsAvailable } from '../lib/ledger.js';
+import { fixedVsDiscretionary } from '../lib/recurrences.js';
 import { useBudget } from '../store/useBudget.js';
 
 /**
@@ -95,6 +96,36 @@ function Hero({ totals, comparison }) {
   );
 }
 
+/**
+ * Le partage entre ce qui est engagé et ce qui reste à arbitrer.
+ *
+ * C'est la lecture qui manque à un budget qui ne rend compte que du passé :
+ * savoir que 2'100 sont partis en dépenses ne dit pas s'il était possible de
+ * faire autrement. Une barre plutôt qu'un camembert — deux parts d'un tout se
+ * comparent mieux en longueur qu'en angle.
+ */
+function Socle({ partage }) {
+  const part = Math.round((partage.part || 0) * 100);
+  return (
+    <div className="body">
+      <div className="socle">
+        <div className="socle-barre" role="img"
+          aria-label={`${part} % des dépenses du mois sont des charges engagées`}>
+          <i style={{ width: `${part}%` }} />
+        </div>
+        <div className="socle-legende">
+          <span><b>{fmt(partage.engage)}</b> engagé <span className="muted">({part} %)</span></span>
+          <span className="num"><b>{fmt(partage.arbitrable)}</b> arbitrable</span>
+        </div>
+        <p className="hint">
+          Le socle rassemble les charges qui reviennent chaque mois — primes, abonnements, parking.
+          Le reste est ce sur quoi vous pouvez agir. <Link to="/tiers">Voir le détail</Link>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Totals({ totals }) {
   return (
     <dl className="stats">
@@ -130,6 +161,8 @@ function MonthTotals({ data, period }) {
   const uncategorised = rows.filter((r) => !r.cat);
   const previous = comparisonWith(data, period);
 
+  const partage = fixedVsDiscretionary(data, period);
+
   return (
     <>
       <Hero
@@ -137,6 +170,7 @@ function MonthTotals({ data, period }) {
         comparison={previous && { delta: totals.remaining - previous.totals.remaining, label: previous.label }}
       />
       <Totals totals={totals} />
+      {partage && partage.engage > 0 && <Socle partage={partage} />}
       {uncategorised.length > 0 && (
         <div className="body">
           <div className="note warn">

@@ -449,7 +449,14 @@ tbody tr:hover { background: var(--raised); }
 .rows li:last-child { border-bottom: 0; }
 .rows .lead { flex: 1; min-width: 0; }
 .rows .lead b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rows .lead span { font-size: 13px; color: var(--ink-2); }
+.rows .lead span {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .rows .amount { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* -------------------------------------------------------------- contrôles */
@@ -606,3 +613,23 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ------------------------------------------------------ socle et arbitrable
+   Deux parts d'un même tout : une barre les compare mieux qu'un camembert,
+   parce qu'on lit une longueur plus vite qu'un angle. */
+.socle-barre {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  overflow: hidden;
+}
+.socle-barre i { display: block; height: 100%; background: var(--accent); }
+.socle-legende {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.socle .hint { margin-top: 8px; }
