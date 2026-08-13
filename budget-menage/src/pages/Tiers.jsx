@@ -3,9 +3,69 @@ import { useMemo, useState } from 'react';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
+import { accountBalances } from '../lib/ledger.js';
 import { categoriseTiers, groupByPayee } from '../lib/tiers.js';
 import { detectRecurring } from '../lib/recurrences.js';
+import { forecast } from '../lib/forecast.js';
 import { edit, useBudget } from '../store/useBudget.js';
+
+/**
+ * Projection de trésorerie à trois mois.
+ *
+ * Elle ne projette **que** les récurrences observées : les dépenses
+ * arbitrables ne sont pas extrapolées, parce qu'on ignore ce que le ménage
+ * choisira de dépenser. La projection est donc structurellement optimiste, et
+ * l'écran le dit plutôt que de laisser croire à une prévision complète.
+ */
+function Tresorerie({ projection: p }) {
+  const creux = p.creux;
+  return (
+    <div className="block">
+      <header>
+        <div className="grow">
+          <h3>Trésorerie à trois mois</h3>
+          <p>
+            À partir du solde rapproché et des seules charges et revenus récurrents. Vos dépenses
+            courantes ne sont pas extrapolées : la courbe réelle passera en dessous.
+          </p>
+        </div>
+      </header>
+
+      <dl className="stats">
+        <div className="stat">
+          <dt>Solde de départ</dt>
+          <dd>
+            {fmt(p.depart)}
+            {p.comptesInconnus > 0 && (
+              <span className="sub">{p.comptesInconnus} compte(s) sans solde établi, exclus</span>
+            )}
+          </dd>
+        </div>
+        <div className="stat">
+          <dt>Entrées attendues</dt>
+          <dd className="pos">{fmt(p.entrees)}</dd>
+        </div>
+        <div className="stat">
+          <dt>Sorties engagées</dt>
+          <dd>{fmt(p.sorties)}</dd>
+        </div>
+        <div className="stat">
+          <dt>Au {frDate(p.fin)}</dt>
+          <dd className={p.arrivee < 0 ? 'alert' : undefined}>{fmt(p.arrivee)}</dd>
+        </div>
+      </dl>
+
+      {creux && (
+        <div className="body">
+          <div className="note err">
+            <strong>Le solde passerait sous le seuil le {frDate(creux.date)}</strong> — {fmt(creux.solde)},
+            après « {creux.label} ».
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Tiers et charges récurrentes.
@@ -22,6 +82,8 @@ export default function Tiers() {
 
   const tiers = useMemo(() => groupByPayee(data), [data]);
   const recurrences = useMemo(() => detectRecurring(data), [data]);
+  const projection = useMemo(() => forecast(data, { mois: 3 }), [data]);
+  const soldes = useMemo(() => accountBalances(data), [data]);
 
   if (!data.tx.length) {
     return <div className="block"><div className="empty">Aucune écriture. Importez un relevé pour commencer.</div></div>;
@@ -49,6 +111,29 @@ export default function Tiers() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {projection ? <Tresorerie projection={projection} /> : charges.length > 0 && (
+        <div className="block">
+          <header>
+            <div className="grow">
+              <h3>Trésorerie à trois mois</h3>
+              {/* Une carte absente ressemble à une panne. Mieux vaut dire ce
+                  qui manque : la projection a besoin d'un point de départ, et
+                  l'export CSV d'UBS ne porte aucun solde. */}
+              <p>
+                Indisponible : aucun solde de compte n’est établi
+                {soldes.comptes.length > 0 && <> sur les {soldes.comptes.length} comptes du journal</>}.
+                Une projection a besoin d’un point de départ, et la somme des mouvements importés
+                n’en est pas un — elle ignore tout ce qui précède le premier relevé.
+              </p>
+              <p style={{ marginTop: 8 }}>
+                Saisissez les soldes d’ouverture et de clôture au moment de l’import : l’export CSV
+                d’UBS n’en porte pas, un relevé MT940 les porte et se rapproche tout seul.
+              </p>
+            </div>
+          </header>
         </div>
       )}
 

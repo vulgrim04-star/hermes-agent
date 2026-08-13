@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 
+import BudgetEditor from '../components/BudgetEditor.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { LEAVES, catOf, kindOf, rootOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
 import { getTheme, setTheme } from '../lib/theme.js';
 import { fmt } from '../lib/money.js';
-import { applyBank, emptyState, normLabel } from '../lib/ledger.js';
+import { applyBank, emptyState, monthsAvailable, normLabel } from '../lib/ledger.js';
 import { positionsAt, ORIGIN_LABELS, QUANTITY_SCALE } from '../lib/networth.js';
 import { buildXlsx, date as xdate, money as xmoney, number as xnumber, text as xtext } from '../lib/xlsx.js';
 import { edit, replaceAll, useBudget } from '../store/useBudget.js';
@@ -80,6 +81,8 @@ export default function Settings() {
       {message && <p className="note ok" style={{ marginBottom: 20 }}>{message}</p>}
 
       <ThemeCard />
+
+      <BudgetEditor periods={monthsAvailable(data)} />
 
       <div className="block">
         <header>

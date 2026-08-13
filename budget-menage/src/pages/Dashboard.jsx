@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import BudgetCard from '../components/BudgetCard.jsx';
 import Donut, { foldSlices } from '../components/Donut.jsx';
 import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
@@ -67,6 +68,7 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {scale === 'mois' && <BudgetCard data={data} period={period} />}
       {scale === 'mois' ? <MonthDetail data={data} period={period} /> : <YearTable data={data} year={period} />}
     </>
   );

@@ -649,3 +649,41 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   .toast.proposition { flex-wrap: wrap; max-width: 94vw; }
   .toast.proposition span { flex: 1 1 100%; }
 }
+
+/* ------------------------------------------------------------- budgets
+   La barre porte deux informations : ce qui est consommé (le remplissage) et
+   où l'on devrait en être à cette date (le repère). C'est le second qui rend
+   le budget utile avant la fin du mois. */
+.budgets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.budget-tete {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.budget-barre {
+  position: relative;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  overflow: hidden;
+}
+.budget-barre i { display: block; height: 100%; background: var(--accent); }
+.budget-barre.depasse i { background: var(--err); }
+/* Le repère de rythme : un trait fin, pas une couleur de plus. */
+.budget-barre b {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 16px;
+  background: var(--ink-2);
+  border-radius: 1px;
+}
+.budget-note { margin-top: 6px; font-size: 13px; color: var(--ink-3); }
+.budget-note .alerte { color: var(--warn); font-weight: 500; }
+.budget-barre.depasse ~ .budget-note .alerte { color: var(--err); }
+
+/* Un solde projeté négatif est une anomalie, pas une dépense : le rouge s'y
+   applique, comme au reste à vivre négatif. */
+.stat dd.alert { color: var(--err); }
