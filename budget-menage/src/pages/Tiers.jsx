@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import Avatar from '../components/Avatar.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
@@ -168,6 +169,7 @@ export default function Tiers() {
           <ul className="rows">
             {charges.map((r) => (
               <li key={r.key}>
+                <Avatar nom={r.label} taille={34} />
                 <div className="lead">
                   <b>{r.label}</b>
                   {/* Une seule ligne, tronquée au besoin : sur téléphone, un
@@ -232,6 +234,7 @@ export default function Tiers() {
           <ul className="rows">
             {visibles.slice(0, 120).map((t) => (
               <li key={t.key}>
+                <Avatar nom={t.label} />
                 <div className="lead">
                   <b>{t.label}</b>
                   <span>

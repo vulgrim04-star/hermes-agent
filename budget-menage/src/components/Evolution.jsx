@@ -1,4 +1,3 @@
-import LineChart from './LineChart.jsx';
 import { evolution } from '../lib/patrimoine.js';
 import { fmt } from '../lib/money.js';
 import { MONTHS_SHORT } from '../lib/dates.js';
@@ -62,17 +61,6 @@ export default function Evolution({ data, from, to }) {
         </div>
       </dl>
 
-      {/* Deux points ne font pas une courbe : ils font un segment, et deux
-          cents pixels de blanc. La liste des mois dit alors la même chose. */}
-      {bilan.points.length > 2 && (
-        <div className="body">
-          <LineChart
-            points={bilan.points.map((p) => ({ label: court(p.period), value: p.net }))}
-            aria="Évolution du patrimoine net"
-          />
-        </div>
-      )}
-
       {bilan.incertains > 0 && (
         <div className="body" style={{ paddingTop: 0 }}>
           <div className="note warn">
@@ -93,7 +81,7 @@ export default function Evolution({ data, from, to }) {
                   épargne {signe(p.epargne)} · valorisation {signe(p.valorisation)}
                   {p.reporte && <> · valeur reportée</>}
                 </span>
-                <div className="split">
+                <div className="decompo">
                   <i className="ep" style={{ width: `${(Math.abs(p.epargne) / echelle) * 100}%` }} />
                   <i className={p.valorisation < 0 ? 'val neg' : 'val'}
                     style={{ width: `${(Math.abs(p.valorisation) / echelle) * 100}%` }} />

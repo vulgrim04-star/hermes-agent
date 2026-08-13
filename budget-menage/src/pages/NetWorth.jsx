@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import Allocation from '../components/Allocation.jsx';
+import AreaChart from '../components/AreaChart.jsx';
+import Avatar from '../components/Avatar.jsx';
 import Evolution from '../components/Evolution.jsx';
+import Hero, { pourcentage } from '../components/Hero.jsx';
 import Immobilier from '../components/Immobilier.jsx';
 import Projection from '../components/Projection.jsx';
-import { shiftMonth } from '../lib/dates.js';
+import RangePicker, { moisDe } from '../components/RangePicker.jsx';
+import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../lib/dates.js';
 import { fmt, parseAmount } from '../lib/money.js';
-import { QUANTITY_SCALE, ASSET_KINDS, ORIGIN_LABELS, addAsset, pillar3aStatus,
-  positionsAt, removeAsset, setValuation } from '../lib/networth.js';
+import { QUANTITY_SCALE, ASSET_KINDS, ORIGIN_LABELS, addAsset, netWorthAt, netWorthSeries,
+  pillar3aStatus, positionsAt, removeAsset, setValuation } from '../lib/networth.js';
 import { edit, useBudget } from '../store/useBudget.js';
+
+const court = (period) => `${MONTHS_SHORT[Number(period.slice(5, 7)) - 1]} ${period.slice(2, 4)}`;
 
 /**
  * Patrimoine : ce que le ménage possède, moins ce qu'il doit.
@@ -20,35 +26,64 @@ import { edit, useBudget } from '../store/useBudget.js';
 export default function NetWorth() {
   const data = useBudget((s) => s.data);
   const [period, setPeriod] = useState(() => new Date().toISOString().slice(0, 7));
+  const [range, setRange] = useState('1A');
+  const [survol, setSurvol] = useState(null);
 
   const positions = positionsAt(data, period);
-
   const assets = positions.filter((p) => !p.isLiability).reduce((s, p) => s + (p.valueCents || 0), 0);
   const liabilities = positions
     .filter((p) => p.isLiability)
     .reduce((s, p) => s + Math.abs(p.valueCents || 0), 0);
   const carried = positions.filter((p) => p.origin === 'report').length;
   const unknown = positions.filter((p) => p.valueCents === null).length;
+  const net = assets - liabilities;
+
+  // La série s'arrête au mois choisi et ne commence qu'au premier mois
+  // valorisé : les mois d'avant ne valent pas zéro, ils sont inconnus.
+  const serie = useMemo(() => {
+    const n = moisDe(range) ?? 24;
+    const brute = netWorthSeries(data, shiftMonth(period, -(n - 1)), period);
+    const debut = brute.findIndex((p) => p.assets !== 0 || p.liabilities !== 0);
+    return debut < 0 ? [] : brute.slice(debut).map((p) => ({
+      label: court(p.period), value: p.net, period: p.period,
+    }));
+  }, [data, period, range]);
+
+  const precedent = netWorthAt(data, shiftMonth(period, -1));
+  const comparable = precedent.assets !== 0 || precedent.liabilities !== 0;
+  const affiche = survol ? survol.value : net;
 
   return (
     <>
       <div className="block">
-        <header>
-          <div className="grow">
-            <h3>Patrimoine net</h3>
-            <p>Actifs moins dettes, à la fin du mois choisi.</p>
-          </div>
-          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
-        </header>
+        <div className="body" style={{ paddingBottom: 0, display: 'flex', justifyContent: 'flex-end' }}>
+          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Mois" />
+        </div>
+
+        <Hero
+          label={survol ? monthLabel(survol.period) : 'Patrimoine net'}
+          cents={affiche}
+          alerte={affiche < 0}
+          variation={!survol && comparable ? {
+            cents: net - precedent.net,
+            part: pourcentage(precedent.net, net),
+            depuis: `vs ${monthLabel(shiftMonth(period, -1))}`,
+          } : null}
+        />
+
+        {serie.length > 2 && (
+          <>
+            <RangePicker valeur={range} onChange={setRange} moisDisponibles={serie.length} />
+            <AreaChart points={serie} onScrub={setSurvol} />
+          </>
+        )}
+
         <dl className="stats">
           <div className="stat"><dt>Actifs</dt><dd>{fmt(assets)}</dd></div>
           <div className="stat"><dt>Dettes</dt><dd>{fmt(liabilities)}</dd></div>
-          <div className="stat">
-            <dt>Patrimoine net</dt>
-            <dd className={assets - liabilities < 0 ? 'neg' : 'pos'}>{fmt(assets - liabilities)}</dd>
-          </div>
           <div className="stat"><dt>Positions</dt><dd>{positions.length}</dd></div>
         </dl>
+
         {(carried > 0 || unknown > 0) && (
           <div className="body">
             <p className="row">
@@ -63,7 +98,7 @@ export default function NetWorth() {
       <Allocation data={data} period={period} />
       <PositionsCard positions={positions} period={period} accounts={data.accounts} />
       <NewPosition accounts={data.accounts} />
-      <Projection data={data} departCents={assets - liabilities} />
+      <Projection data={data} departCents={net} />
       <Immobilier data={data} />
       <Pillar3a data={data} year={Number(period.slice(0, 4))} />
       <YearEnd data={data} year={Number(period.slice(0, 4)) - 1} />
@@ -76,7 +111,7 @@ function PositionsCard({ positions, period, accounts }) {
     <div className="block">
       <header>
         <div className="grow">
-          <h3>Positions au {period}</h3>
+          <h3>Positions au {frDate(monthBounds(period).end)}</h3>
           <p>
             Une valeur saisie l’emporte sur le solde déduit des relevés ; un mois non saisi reprend
             la dernière valeur connue, signalée comme telle.
@@ -85,21 +120,11 @@ function PositionsCard({ positions, period, accounts }) {
       </header>
       {positions.length ? (
         <div className="body flush">
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Position</th><th className="num">Quantité</th><th className="num">Cours</th>
-                  <th className="num">Valeur</th><th>Origine</th><th />
-                </tr>
-              </thead>
-              <tbody>
-                {positions.map((position) => (
-                  <PositionRow key={position.assetId} position={position} period={period} accounts={accounts} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="rows">
+            {positions.map((position) => (
+              <PositionRow key={position.assetId} position={position} period={period} accounts={accounts} />
+            ))}
+          </ul>
         </div>
       ) : (
         <div className="empty">Aucune position. Ajoutez-en une ci-dessous.</div>
@@ -108,7 +133,17 @@ function PositionsCard({ positions, period, accounts }) {
   );
 }
 
+/**
+ * Une position se lit d'abord, et se modifie ensuite.
+ *
+ * La saisie était un tableau à cinq colonnes : sur un téléphone, elle sortait
+ * de l'écran et il fallait faire défiler horizontalement pour atteindre le
+ * bouton d'enregistrement. La ligne s'ouvre maintenant par son libellé — un
+ * bouton « Modifier » à droite mangeait la largeur et tronquait le nom de la
+ * position — et la saisie, quand elle s'ouvre, occupe toute la largeur.
+ */
 function PositionRow({ position, period, accounts }) {
+  const [ouvert, setOuvert] = useState(false);
   const [quantity, setQuantity] = useState(
     position.quantityE8 === null ? '' : String(position.quantityE8 / QUANTITY_SCALE));
   const [price, setPrice] = useState(
@@ -133,45 +168,61 @@ function PositionRow({ position, period, accounts }) {
     const outcome = edit((state) =>
       setValuation(state, { assetId: position.assetId, period, valueCents: cents,
         quantityE8, unitPriceCents: priceCents }));
-    setError(outcome.kind === 'valeur-manquante' ? 'Indiquez une valeur, ou une quantité et un cours.' : '');
+    if (outcome.kind === 'valeur-manquante') {
+      setError('Indiquez une valeur, ou une quantité et un cours.');
+      return;
+    }
+    setError('');
+    setOuvert(false);
   }
 
   return (
-    <tr>
-      <td>
-        {position.label}
-        {position.isLiability && <span className="pill" style={{ marginLeft: 6 }}>dette</span>}
-        {position.account && (
-          <span className="muted mono" style={{ display: 'block', fontSize: 12 }}>
-            {(accounts[position.account] || {}).label || position.account}
-          </span>
-        )}
-      </td>
-      <td className="num">
-        <input className="num-in" style={{ width: 110 }} placeholder="—"
-          value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-      </td>
-      <td className="num">
-        <input className="num-in" style={{ width: 110 }} placeholder="—"
-          value={price} onChange={(e) => setPrice(e.target.value)} />
-      </td>
-      <td className="num">
-        <input className="num-in" placeholder={position.valueCents === null ? '—' : (position.valueCents / 100).toFixed(2)}
-          value={value} onChange={(e) => setValue(e.target.value)} />
-      </td>
-      <td className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-        {ORIGIN_LABELS[position.origin]}
-        {position.reportedFrom && ` de ${position.reportedFrom}`}
-      </td>
-      <td className="num" style={{ whiteSpace: 'nowrap' }}>
-        <button type="button" className="btn" onClick={save}>Enregistrer</button>{' '}
-        <button type="button" className="btn quiet"
-          onClick={() => { if (window.confirm(`Retirer « ${position.label} » ?`)) edit((s) => removeAsset(s, position.assetId)); }}>
-          Retirer
-        </button>
-        {error && <span style={{ display: 'block', fontSize: 12, color: 'var(--err)' }}>{error}</span>}
-      </td>
-    </tr>
+    <li style={ouvert ? { flexWrap: 'wrap' } : undefined}>
+      <Avatar nom={position.label} />
+      <button type="button" className="lead" aria-expanded={ouvert}
+        onClick={() => setOuvert((o) => !o)}>
+        <b>{position.label}</b>
+        <span>
+          {ORIGIN_LABELS[position.origin]}
+          {position.reportedFrom && ` de ${monthLabel(position.reportedFrom)}`}
+          {position.account && ` · ${(accounts[position.account] || {}).label || position.account}`}
+        </span>
+      </button>
+      <span className={position.isLiability ? 'amount neg' : 'amount'}>
+        {position.valueCents === null ? '—' : `${position.isLiability ? '−' : ''}${fmt(Math.abs(position.valueCents))}`}
+      </span>
+
+      {ouvert && (
+        <div style={{ flex: '1 1 100%', paddingTop: 12 }}>
+          <div className="row">
+            <label className="field">
+              Quantité
+              <input className="num-in" style={{ width: 120 }} placeholder="—"
+                value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+            </label>
+            <label className="field">
+              Cours
+              <input className="num-in" style={{ width: 120 }} placeholder="—"
+                value={price} onChange={(e) => setPrice(e.target.value)} />
+            </label>
+            <label className="field">
+              Valeur
+              <input className="num-in" placeholder={position.valueCents === null ? '—' : (position.valueCents / 100).toFixed(2)}
+                value={value} onChange={(e) => setValue(e.target.value)} />
+            </label>
+            <button type="button" className="btn primary" onClick={save}>Enregistrer</button>
+            <button type="button" className="btn danger"
+              onClick={() => { if (window.confirm(`Retirer « ${position.label} » ?`)) edit((s) => removeAsset(s, position.assetId)); }}>
+              Retirer
+            </button>
+          </div>
+          {error && <p className="note err" style={{ marginTop: 10 }}>{error}</p>}
+          <p className="hint">
+            Quantité et cours ensemble déduisent la valeur ; sinon la valeur saisie fait foi.
+          </p>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -250,7 +301,7 @@ function Pillar3a({ data, year }) {
             </div>
           </div>
         )}
-        <dl className="stats" style={{ border: '1px solid var(--rule)' }}>
+        <dl className="stats" style={{ border: '1px solid var(--rule)', borderRadius: 'var(--r-ctl)', overflow: 'hidden' }}>
           <div className="stat"><dt>Versé</dt><dd>{fmt(status.paidCents)}</dd></div>
           <div className="stat">
             <dt>Plafond</dt>
@@ -287,23 +338,23 @@ function YearEnd({ data, year }) {
         </div>
       </header>
       <div className="body flush">
-        <table>
-          <tbody>
-            {positions.map((position) => (
-              <tr key={position.assetId}>
-                <td>{position.label}</td>
-                <td className="muted" style={{ fontSize: 12 }}>{ORIGIN_LABELS[position.origin]}</td>
-                <td className="num">
-                  {position.isLiability ? '−' : ''}{fmt(Math.abs(position.valueCents))}
-                </td>
-              </tr>
-            ))}
-            <tr style={{ borderTop: '2px solid var(--rule-strong)', fontWeight: 600 }}>
-              <td colSpan={2}>Fortune nette</td>
-              <td className={net < 0 ? 'num neg' : 'num pos'}>{fmt(net)}</td>
-            </tr>
-          </tbody>
-        </table>
+        <ul className="rows">
+          {positions.map((position) => (
+            <li key={position.assetId}>
+              <div className="lead">
+                <b>{position.label}</b>
+                <span>{ORIGIN_LABELS[position.origin]}</span>
+              </div>
+              <span className={position.isLiability ? 'amount neg' : 'amount'}>
+                {position.isLiability ? '−' : ''}{fmt(Math.abs(position.valueCents))}
+              </span>
+            </li>
+          ))}
+          <li>
+            <div className="lead"><b>Fortune nette</b></div>
+            <span className={net < 0 ? 'amount neg' : 'amount pos'}>{fmt(net)}</span>
+          </li>
+        </ul>
       </div>
     </div>
   );

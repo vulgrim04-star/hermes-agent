@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import Avatar from '../components/Avatar.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { catOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
@@ -63,57 +64,43 @@ export default function Review() {
             )}
           </header>
           <div className="body flush">
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sortie</th><th>Entrée</th><th className="num">Montant</th>
-                    <th className="num">Écart</th><th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pairs.map((pair) => {
-                    const out = byId.get(pair.out);
-                    const income = byId.get(pair.in);
-                    if (!out || !income) return null;
-                    return (
-                      <tr key={pair.id}>
-                        <td>
-                          {frDate(out.date)} · {out.label}
-                          <span className="muted mono" style={{ display: 'block', fontSize: 12 }}>
-                            {(data.accounts[out.acc] || {}).label || out.acc}
-                          </span>
-                        </td>
-                        <td>
-                          {frDate(income.date)} · {income.label}
-                          <span className="muted mono" style={{ display: 'block', fontSize: 12 }}>
-                            {(data.accounts[income.acc] || {}).label || income.acc}
-                          </span>
-                        </td>
-                        <td className="num neg">{fmt(out.cents)}</td>
-                        <td className="num muted">{pair.gap} j</td>
-                        <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => edit((s) => decideTransfer(s, pair.id, 'confirme'))}
-                          >
-                            Confirmer
-                          </button>{' '}
-                          <button
-                            type="button"
-                            className="btn quiet"
-                            onClick={() => edit((s) => decideTransfer(s, pair.id, 'rejete'))}
-                          >
-                            Écarter
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ul className="rows">
+              {pairs.map((pair) => {
+                const out = byId.get(pair.out);
+                const income = byId.get(pair.in);
+                if (!out || !income) return null;
+                return (
+                  <li key={pair.id} style={{ flexWrap: 'wrap' }}>
+                    <div className="lead">
+                      <b>{out.label}</b>
+                      <span>
+                        {frDate(out.date)} · {(data.accounts[out.acc] || {}).label || out.acc}
+                        {' → '}
+                        {(data.accounts[income.acc] || {}).label || income.acc}
+                        {pair.gap > 0 && ` · ${pair.gap} j d’écart`}
+                      </span>
+                    </div>
+                    <span className="amount">{fmt(out.cents)}</span>
+                    <div className="row" style={{ flex: '1 1 100%' }}>
+                      <button
+                        type="button"
+                        className="btn primary"
+                        onClick={() => edit((s) => decideTransfer(s, pair.id, 'confirme'))}
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        type="button"
+                        className="btn quiet"
+                        onClick={() => edit((s) => decideTransfer(s, pair.id, 'rejete'))}
+                      >
+                        Écarter
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       )}
@@ -131,51 +118,40 @@ export default function Review() {
         </header>
         {queue.length ? (
           <div className="body flush">
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th><th>Libellé</th><th className="num">Montant</th>
-                    <th>Catégorie</th><th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {queue.slice(0, 120).map((tx) => (
-                    <tr key={tx.id}>
-                      <td className="muted" style={{ width: 84 }}>{frDate(tx.date)}</td>
-                      <td>
-                        {tx.label}
-                        {tx.ext && (
-                          <span className="muted" style={{ display: 'block', fontSize: 12 }}>
-                            banque : {tx.ext}
-                          </span>
-                        )}
-                      </td>
-                      <td className={tx.cents < 0 ? 'num neg' : 'num pos'}>{fmt(tx.cents)}</td>
-                      <td>
-                        <CategorySelect
-                          value={tx.cat}
-                          onChange={(c) => {
-                            edit((s) => {
-                              const row = s.tx.find((t) => t.id === tx.id);
-                              if (row) row.cat = c;
-                            });
-                            // Classer une ligne apprend quelque chose sur son
-                            // tiers : on le propose, on ne l'applique pas.
-                            setProposition(c ? proposerRegle(data, tx, c) : null);
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <button type="button" className="btn quiet" onClick={() => setRuleFor(tx)}>
-                          Créer une règle…
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="rows">
+              {queue.slice(0, 120).map((tx) => (
+                <li key={tx.id} style={{ flexWrap: 'wrap' }}>
+                  <Avatar nom={tx.cp || tx.label} />
+                  <div className="lead">
+                    <b>{tx.label}</b>
+                    <span>
+                      {frDate(tx.date)}
+                      {tx.ext && <> · banque : {tx.ext}</>}
+                    </span>
+                  </div>
+                  <span className={tx.cents < 0 ? 'amount' : 'amount pos'}>{fmt(tx.cents)}</span>
+                  <div className="row" style={{ flex: '1 1 100%', alignItems: 'center' }}>
+                    <div style={{ flex: '1 1 200px' }}>
+                      <CategorySelect
+                        value={tx.cat}
+                        onChange={(c) => {
+                          edit((s) => {
+                            const row = s.tx.find((t) => t.id === tx.id);
+                            if (row) row.cat = c;
+                          });
+                          // Classer une ligne apprend quelque chose sur son
+                          // tiers : on le propose, on ne l'applique pas.
+                          setProposition(c ? proposerRegle(data, tx, c) : null);
+                        }}
+                      />
+                    </div>
+                    <button type="button" className="btn quiet" onClick={() => setRuleFor(tx)}>
+                      Créer une règle…
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
             {queue.length > 120 && (
               <p className="hint" style={{ padding: '12px 18px' }}>
                 Les 120 premières ; classez-les et les suivantes apparaîtront.

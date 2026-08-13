@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import LineChart from './LineChart.jsx';
+import AreaChart from './AreaChart.jsx';
 import { projection, tauxEpargne } from '../lib/patrimoine.js';
 import { fmt, fmtRate, parseAmount, parseRate } from '../lib/money.js';
 import { monthLabel } from '../lib/dates.js';
@@ -110,9 +110,8 @@ export default function Projection({ data, departCents }) {
         </dl>
 
         <div style={{ marginTop: 14 }}>
-          <LineChart
-            points={dix.points.map((p) => ({ label: p.annee === 0 ? 'auj.' : `+${p.annee}`, value: p.capitalCents }))}
-            aria="Projection du patrimoine à dix ans"
+          <AreaChart
+            points={dix.points.map((p) => ({ label: p.annee === 0 ? 'aujourd’hui' : `dans ${p.annee} an(s)`, value: p.capitalCents }))}
           />
         </div>
 

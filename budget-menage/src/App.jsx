@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 
 import { isDemo, leaveDemo } from './lib/demo.js';
-import { initTheme } from './lib/theme.js';
+import { getMasque, initMasque, initTheme, setMasque } from './lib/theme.js';
 import { explainSyncError } from './lib/sync-error.js';
 import { initAuth, signOut, useAuth } from './store/useAuth.js';
 import { loadForUser, useBudget } from './store/useBudget.js';
@@ -17,11 +17,11 @@ import { pendingCount } from './lib/ledger.js';
 
 import {
   IconDashboard,
-  IconImport,
+  IconEye,
+  IconEyeOff,
   IconLedger,
+  IconMore,
   IconPayees,
-  IconReview,
-  IconSettings,
   IconWealth,
 } from './components/Icons.jsx';
 
@@ -34,34 +34,36 @@ import Transactions from './pages/Transactions.jsx';
 import Tiers from './pages/Tiers.jsx';
 import Review from './pages/Review.jsx';
 import Settings from './pages/Settings.jsx';
+import More from './pages/More.jsx';
 
 /*
- * Six onglets dans la barre du bas — un de plus que ce qu'iOS recommande.
+ * Cinq onglets, pas six.
  *
- * Le compromis est assumé : sur un iPhone de 393 points, six cibles font 65
- * points de large, ce qui reste au-dessus des 44 points minimum. Les Réglages,
- * qu'on ouvre rarement, restent dans l'en-tête. Si la barre devait s'encombrer
- * davantage, c'est l'Import qui la quitterait : on importe une fois par mois,
- * on consulte tous les jours.
+ * Sur un iPhone de 393 points, six cibles faisaient 65 points de large ; cinq
+ * en font 78, et la différence se sent au pouce. Révision, Import et Réglages
+ * vivent désormais sous « Plus » — on importe une fois par mois, on consulte
+ * tous les jours. La pastille des écritures à trancher se reporte sur l'onglet
+ * Plus, sans quoi le travail en attente disparaîtrait de la vue.
+ *
+ * Le Budget vient en premier parce que c'est l'écran d'ouverture : la barre
+ * commence là où l'application commence.
  */
 const TABS = [
   { to: '/', label: 'Tableau de bord', short: 'Budget', end: true, Icon: IconDashboard },
   { to: '/ecritures', label: 'Écritures', short: 'Écritures', Icon: IconLedger },
-  { to: '/revision', label: 'Révision', short: 'Révision', badge: true, Icon: IconReview },
   { to: '/tiers', label: 'Tiers', short: 'Tiers', Icon: IconPayees },
   { to: '/patrimoine', label: 'Patrimoine', short: 'Patrimoine', Icon: IconWealth },
-  { to: '/import', label: 'Import', short: 'Import', Icon: IconImport },
+  { to: '/plus', label: 'Plus', short: 'Plus', badge: true, Icon: IconMore },
 ];
 
-const SETTINGS = { to: '/reglages', label: 'Réglages', short: 'Réglages', Icon: IconSettings };
-
 const TITLES = {
-  '/': 'Tableau de bord',
+  '/': 'Budget',
   '/ecritures': 'Écritures',
   '/revision': 'Révision',
   '/tiers': 'Tiers',
   '/patrimoine': 'Patrimoine',
   '/import': 'Import',
+  '/plus': 'Plus',
   '/reglages': 'Réglages',
   '/mot-de-passe': 'Mot de passe',
   '/connexion': 'Connexion',
@@ -76,6 +78,7 @@ const SYNC_LABEL = {
 export default function App() {
   useEffect(() => {
     initTheme();
+    initMasque();
     initAuth();
   }, []);
 
@@ -167,9 +170,7 @@ function Shell({ local = false }) {
                 </button>
               </>
             )}
-            <NavLink to="/reglages" className="btn quiet sm-only" aria-label="Réglages">
-              <SETTINGS.Icon />
-            </NavLink>
+            <Oeil />
           </div>
         </div>
       </header>
@@ -189,10 +190,6 @@ function Shell({ local = false }) {
             </span>
           </NavLink>
         ))}
-        <NavLink to={SETTINGS.to} className={({ isActive }) => (isActive ? 'on wide-only' : 'wide-only')}>
-          <SETTINGS.Icon />
-          <span>{SETTINGS.short}</span>
-        </NavLink>
       </nav>
 
       <main className="wrap">
@@ -208,6 +205,7 @@ function Shell({ local = false }) {
             <Route path="/tiers" element={<Tiers />} />
             <Route path="/patrimoine" element={<NetWorth />} />
             <Route path="/import" element={<Import />} />
+            <Route path="/plus" element={<More local={local} demo={demo} email={email} />} />
             <Route path="/reglages" element={<Settings />} />
             <Route path="/mot-de-passe" element={<Password />} />
             {/* La synchronisation reste offerte, elle n'est plus imposée. */}
@@ -217,6 +215,30 @@ function Shell({ local = false }) {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * L'œil de discrétion.
+ *
+ * Un geste pour flouter tous les montants — le train, l'open space, l'écran
+ * qu'on tend à quelqu'un. Le masque est posé sur la racine du document et
+ * appliqué par la feuille de style : aucun composant n'a à s'en souvenir, donc
+ * aucun montant ne peut lui échapper par oubli.
+ */
+function Oeil() {
+  const [masque, setEtat] = useState(getMasque);
+  return (
+    <button
+      type="button"
+      className="btn quiet"
+      aria-pressed={masque}
+      aria-label={masque ? 'Afficher les montants' : 'Masquer les montants'}
+      title={masque ? 'Afficher les montants' : 'Masquer les montants'}
+      onClick={() => setEtat(setMasque(!masque))}
+    >
+      {masque ? <IconEyeOff /> : <IconEye />}
+    </button>
   );
 }
 

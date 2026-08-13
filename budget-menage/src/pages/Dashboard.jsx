@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import AreaChart from '../components/AreaChart.jsx';
+import Avatar from '../components/Avatar.jsx';
 import BudgetCard from '../components/BudgetCard.jsx';
-import Donut, { foldSlices } from '../components/Donut.jsx';
+import Hero, { pourcentage } from '../components/Hero.jsx';
+import RangePicker, { moisDe } from '../components/RangePicker.jsx';
+import Segments from '../components/Segments.jsx';
 import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
 import { kindOf, rootOf } from '../lib/categories.js';
@@ -10,10 +14,16 @@ import { expenseByRoot, ledger, monthsAvailable, totalsOf, yearsAvailable } from
 import { fixedVsDiscretionary } from '../lib/recurrences.js';
 import { useBudget } from '../store/useBudget.js';
 
+const court = (period) => `${MONTHS_SHORT[Number(period.slice(5, 7)) - 1]} ${period.slice(2, 4)}`;
+
 /**
  * Le mois pour piloter, l'année pour comprendre : une prime semestrielle ou un
  * acompte trimestriel ne se lisent pas sur trente jours. Les deux vues partent
  * du même journal et de la même définition du reste à vivre.
+ *
+ * La mise en page suit le geste du téléphone : le chiffre qu'on vient chercher
+ * occupe le haut de l'écran, la courbe se lit au pouce juste en dessous, et le
+ * détail vient après — jamais l'inverse.
  */
 export default function Dashboard() {
   const data = useBudget((s) => s.data);
@@ -33,39 +43,34 @@ export default function Dashboard() {
     );
   }
 
-  const period = scale === 'mois' ? (months.includes(month) ? month : months[0]) : (years.includes(year) ? year : years[0]);
+  const period = scale === 'mois'
+    ? (months.includes(month) ? month : months[0])
+    : (years.includes(year) ? year : years[0]);
 
   return (
     <>
       <div className="block">
-        {/* La définition passe sous les chiffres : elle explique ce qu'on lit,
-            elle n'a pas à retarder la lecture. Sur téléphone, la garder en tête
-            de carte repoussait le reste à vivre hors de l'écran. */}
-        <header>
-          <div className="grow">
-            <h3>{scale === 'mois' ? monthLabel(period) : 'Année ' + period}</h3>
-          </div>
-          <div className="row">
-            <select value={scale} onChange={(e) => setScale(e.target.value)}>
-              <option value="mois">Mois</option>
-              <option value="annee">Année</option>
-            </select>
+        <div className="body" style={{ paddingBottom: 0 }}>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="segmented" role="group" aria-label="Échelle">
+              <button type="button" aria-pressed={scale === 'mois'} onClick={() => setScale('mois')}>Mois</button>
+              <button type="button" aria-pressed={scale === 'annee'} onClick={() => setScale('annee')}>Année</button>
+            </div>
             {scale === 'mois' ? (
-              <select value={period} onChange={(e) => setMonth(e.target.value)}>
+              <select value={period} onChange={(e) => setMonth(e.target.value)} aria-label="Mois">
                 {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
               </select>
             ) : (
-              <select value={period} onChange={(e) => setYear(e.target.value)}>
+              <select value={period} onChange={(e) => setYear(e.target.value)} aria-label="Année">
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             )}
           </div>
-        </header>
-        {scale === 'mois' ? <MonthTotals data={data} period={period} /> : <YearTotals data={data} year={period} />}
-        <p className="hint" style={{ padding: '0 18px 16px', marginTop: 14 }}>
-          Reste à vivre = revenus − dépenses − épargne. L’épargne est un emploi du revenu, pas une
-          consommation : elle a sa ligne propre et elle est déduite.
-        </p>
+        </div>
+
+        {scale === 'mois'
+          ? <MonthTotals data={data} period={period} months={months} />
+          : <YearTotals data={data} year={period} />}
       </div>
 
       {scale === 'mois' && <BudgetCard data={data} period={period} />}
@@ -75,55 +80,28 @@ export default function Dashboard() {
 }
 
 /**
- * Le reste à vivre, seul et en très grand : c'est la question qu'on se pose en
- * ouvrant l'application, et elle mérite d'être lue sans être cherchée. Le
- * détail qui l'explique vient juste après, plus discret.
- *
- * Un reste à vivre négatif passe au rouge. C'est le seul emploi du rouge ici :
- * il ne signale pas une dépense — une dépense est normale — mais un mois où le
- * ménage a vécu au-delà de ce qu'il a gagné.
- */
-function Hero({ totals, comparison }) {
-  return (
-    <dl className="hero">
-      <dt>Reste à vivre</dt>
-      <dd className={totals.remaining < 0 ? 'alert' : undefined}>{fmt(totals.remaining)}</dd>
-      {comparison && (
-        <p className="delta">
-          <b>{comparison.delta >= 0 ? '+' : '−'}{fmt(Math.abs(comparison.delta))}</b>{' '}
-          par rapport à {comparison.label}
-        </p>
-      )}
-    </dl>
-  );
-}
-
-/**
  * Le partage entre ce qui est engagé et ce qui reste à arbitrer.
  *
  * C'est la lecture qui manque à un budget qui ne rend compte que du passé :
  * savoir que 2'100 sont partis en dépenses ne dit pas s'il était possible de
- * faire autrement. Une barre plutôt qu'un camembert — deux parts d'un tout se
- * comparent mieux en longueur qu'en angle.
+ * faire autrement.
  */
 function Socle({ partage }) {
   const part = Math.round((partage.part || 0) * 100);
   return (
-    <div className="body">
-      <div className="socle">
-        <div className="socle-barre" role="img"
-          aria-label={`${part} % des dépenses du mois sont des charges engagées`}>
-          <i style={{ width: `${part}%` }} />
-        </div>
-        <div className="socle-legende">
-          <span><b>{fmt(partage.engage)}</b> engagé <span className="muted">({part} %)</span></span>
-          <span className="num"><b>{fmt(partage.arbitrable)}</b> arbitrable</span>
-        </div>
-        <p className="hint">
-          Le socle rassemble les charges qui reviennent chaque mois — primes, abonnements, parking.
-          Le reste est ce sur quoi vous pouvez agir. <Link to="/tiers">Voir le détail</Link>.
-        </p>
+    <div className="body socle">
+      <div className="socle-barre" role="img"
+        aria-label={`${part} % des dépenses du mois sont des charges engagées`}>
+        <i style={{ width: `${part}%` }} />
       </div>
+      <div className="socle-legende">
+        <span><b>{fmt(partage.engage)}</b> engagé <span className="muted">({part} %)</span></span>
+        <span className="num"><b>{fmt(partage.arbitrable)}</b> arbitrable</span>
+      </div>
+      <p className="hint">
+        Le socle rassemble les charges qui reviennent chaque mois — primes, abonnements, parking.
+        Le reste est ce sur quoi vous pouvez agir. <Link to="/tiers">Voir le détail</Link>.
+      </p>
     </div>
   );
 }
@@ -131,7 +109,7 @@ function Socle({ partage }) {
 function Totals({ totals }) {
   return (
     <dl className="stats">
-      <div className="stat"><dt>Revenus</dt><dd>{fmt(totals.income)}</dd></div>
+      <div className="stat"><dt>Revenus</dt><dd className="pos">{fmt(totals.income)}</dd></div>
       <div className="stat"><dt>Dépenses</dt><dd>{fmt(totals.expense)}</dd></div>
       <div className="stat"><dt>Épargne</dt><dd>{fmt(totals.savings)}</dd></div>
       <div className="stat">
@@ -156,25 +134,60 @@ function comparisonWith(data, period) {
   return { totals, label: monthLabel(previous) };
 }
 
-function MonthTotals({ data, period }) {
+function MonthTotals({ data, period, months }) {
   const { start, end } = monthBounds(period);
   const rows = ledger(data, start, end);
   const totals = totalsOf(rows);
   const uncategorised = rows.filter((r) => !r.cat);
   const previous = comparisonWith(data, period);
-
   const partage = fixedVsDiscretionary(data, period);
+
+  const [range, setRange] = useState('6M');
+  const [survol, setSurvol] = useState(null);
+
+  // La série va du plus ancien au plus récent, bornée à la période choisie.
+  const serie = useMemo(() => {
+    const croissants = [...months].reverse();
+    const n = moisDe(range);
+    const gardes = n === null ? croissants : croissants.slice(-n);
+    return gardes.map((m) => {
+      const b = monthBounds(m);
+      return { label: court(m), value: totalsOf(ledger(data, b.start, b.end)).remaining, period: m };
+    });
+  }, [data, months, range]);
+
+  const affiche = survol || { value: totals.remaining, label: null };
 
   return (
     <>
       <Hero
-        totals={totals}
-        comparison={previous && { delta: totals.remaining - previous.totals.remaining, label: previous.label }}
+        label={survol ? monthLabel(survol.period) : 'Reste à vivre'}
+        cents={affiche.value}
+        alerte={affiche.value < 0}
+        variation={!survol && previous ? {
+          cents: totals.remaining - previous.totals.remaining,
+          part: pourcentage(previous.totals.remaining, totals.remaining),
+          depuis: `vs ${previous.label}`,
+        } : null}
       />
+
+      {serie.length > 1 && (
+        <>
+          <RangePicker valeur={range} onChange={setRange} moisDisponibles={months.length} />
+          <AreaChart points={serie} onScrub={setSurvol} />
+        </>
+      )}
+
       <Totals totals={totals} />
       {partage && partage.engage > 0 && <Socle partage={partage} />}
+
+      <p className="hint" style={{ padding: '0 18px 16px' }}>
+        Reste à vivre = revenus − dépenses − épargne. L’épargne est un emploi du revenu, pas une
+        consommation : elle a sa ligne propre et elle est déduite.
+      </p>
+
       {uncategorised.length > 0 && (
-        <div className="body">
+        <div className="body" style={{ paddingTop: 0 }}>
           <div className="note warn">
             {uncategorised.length} écriture(s) sans catégorie ce mois-ci,{' '}
             {fmt(uncategorised.reduce((sum, r) => sum + r.cents, 0))}. Elles restent dans les totaux,
@@ -190,7 +203,6 @@ function MonthTotals({ data, period }) {
 function MonthDetail({ data, period }) {
   const { start, end } = monthBounds(period);
   const rows = ledger(data, start, end);
-  const slices = foldSlices(expenseByRoot(rows));
   const top = rows.filter((r) => r.cents < 0).sort((a, b) => a.cents - b.cents).slice(0, 8);
 
   return (
@@ -198,49 +210,27 @@ function MonthDetail({ data, period }) {
       <div className="block">
         <header><div className="grow"><h3>Dépenses par poste</h3></div></header>
         <div className="body">
-          {slices.length ? (
-            <div className="ring-wrap">
-              <Donut
-                slices={slices}
-                size={188}
-                centre={fmt(slices.reduce((sum, s) => sum + s.value, 0))}
-                caption="dépenses"
-              />
-              <div className="legend">
-                {slices.map((slice) => (
-                  <div key={slice.name}>
-                    <i style={{ background: slice.color }} />
-                    {slice.name}
-                    <span className="num">{fmt(slice.value)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="muted">Aucune dépense sur la période.</p>
-          )}
+          <Segments entries={expenseByRoot(rows)} vide="Aucune dépense sur la période." />
         </div>
       </div>
 
       <div className="block">
         <header><div className="grow"><h3>Plus grosses dépenses</h3></div></header>
         <div className="body flush">
-          <table>
-            <tbody>
-              {top.length ? top.map((row) => (
-                <tr key={row.id}>
-                  <td className="muted" style={{ width: 84 }}>{frDate(row.date)}</td>
-                  <td>
-                    {row.label}
-                    {row.cat && <span className="muted" style={{ display: 'block', fontSize: 12 }}>{row.cat}</span>}
-                  </td>
-                  <td className="num neg">{fmt(row.cents)}</td>
-                </tr>
-              )) : (
-                <tr><td className="empty">Rien à afficher.</td></tr>
-              )}
-            </tbody>
-          </table>
+          <ul className="rows">
+            {top.length ? top.map((row) => (
+              <li key={row.id}>
+                <Avatar nom={row.cp || row.label} />
+                <div className="lead">
+                  <b>{row.label}</b>
+                  <span>{frDate(row.date)}{row.cat && <> · {row.cat}</>}</span>
+                </div>
+                <span className="amount">{fmt(row.cents)}</span>
+              </li>
+            )) : (
+              <li><span className="muted">Rien à afficher.</span></li>
+            )}
+          </ul>
         </div>
       </div>
     </div>
@@ -265,12 +255,14 @@ function YearTotals({ data, year }) {
   return (
     <>
       <Hero
-        totals={totals}
-        comparison={
-          hasPrevious
-            ? { delta: totals.remaining - previous.remaining, label: String(year - 1) }
-            : null
-        }
+        label={`Reste à vivre ${year}`}
+        cents={totals.remaining}
+        alerte={totals.remaining < 0}
+        variation={hasPrevious ? {
+          cents: totals.remaining - previous.remaining,
+          part: pourcentage(previous.remaining, totals.remaining),
+          depuis: `vs ${year - 1}`,
+        } : null}
       />
       <Totals totals={totals} />
       <p className="hint" style={{ padding: '0 18px 16px' }}>

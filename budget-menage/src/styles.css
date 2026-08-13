@@ -1,64 +1,73 @@
 /* ============================================================================
-   Système visuel — inspiration iOS.
+   Système visuel — mise en page façon Finary, pensée pour le téléphone.
 
-   Trois principes tenus partout :
+   Quatre principes tenus partout :
 
-   1. **Le bleu est le seul accent.** Tout ce qui est actionnable est bleu ;
-      rien d'autre ne l'est. Une interface où trois couleurs se disputent
-      l'attention n'en dirige aucune.
-   2. **Le vert ne dit qu'une chose : un crédit.** Les débits restent dans la
-      couleur du texte. Un relevé n'est pas rouge parce qu'on a fait des
-      courses ; le rouge est gardé pour ce qui ne va pas — un rapprochement qui
-      ne boucle pas, une fortune négative.
-   3. **Chaque couleur est définie sur `:root` nu.** Une couleur qui n'existe
-      que sous `prefers-color-scheme` ne s'applique pas dans l'état « système »
-      non stampé : la page rendrait alors le texte d'un thème sur le fond de
-      l'autre.
-
-   Les valeurs viennent des palettes système d'Apple (systemBlue, systemGreen,
-   label, separator…), qui sont conçues pour tenir leur contraste dans les deux
-   thèmes.
+   1. **Sombre par défaut, clair sur demande.** L'application ne suit pas le
+      réglage du téléphone : elle s'ouvre en sombre, parce que c'est là que les
+      chiffres et les courbes ressortent. Le thème clair reste un choix
+      explicite, dans les Réglages. Conséquence pour la feuille de style :
+      `:root` nu porte la palette **sombre**, et le clair ne vaut que sous
+      `[data-theme="light"]`. Aucune couleur n'est définie sous
+      `prefers-color-scheme` — c'est le script du thème qui stampe la racine,
+      et l'état non stampé est donc toujours défini.
+   2. **Le vert menthe dit deux choses, et elles vont dans le même sens :
+      ce qui est actionnable, et ce qui est positif.** Un crédit, une variation
+      à la hausse, un bouton principal, l'onglet actif. Le rouge corail dit
+      l'inverse : une variation à la baisse, un dépassement, une alerte. Un
+      débit ordinaire, lui, reste dans la couleur du texte — un relevé n'est pas
+      rouge parce qu'on a fait des courses.
+   3. **Un seul chiffre domine par écran.** Le héros est deux fois plus gros
+      que tout le reste ; les indicateurs secondaires sont volontairement
+      discrets. Une page où trois chiffres se disputent la vedette n'en fait
+      lire aucun.
+   4. **Le pouce d'abord.** Cibles à 44 px au minimum, barre d'onglets basse à
+      cinq entrées, listes à 64 px de haut, rien d'important au-delà de la
+      moitié haute de l'écran.
    ========================================================================= */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Fonds : le gris groupé porte les cartes, qui sont blanches. */
-  --bg: #f2f2f7;
-  --surface: #ffffff;
-  --raised: #f2f2f7;
-  --sunken: #e9e9ee;
+  /* Fonds : presque noir, cartes à peine plus claires. Le contraste vient de
+     la typographie et de l'accent, pas d'un empilement de gris. */
+  --bg: #0a0a0d;
+  --surface: #14141a;
+  --raised: #1c1c24;
+  --sunken: #22222c;
 
-  /* Texte : quatre niveaux, du plus lisible au plus effacé. */
-  --ink: #1c1c1e;
-  --ink-2: #6c6c70;
-  --ink-3: #a1a1a6;
-  --ink-4: #c7c7cc;
+  --ink: #ffffff;
+  --ink-2: #9a9aab;
+  --ink-3: #6d6d7c;
+  --ink-4: #454552;
 
-  --rule: #e5e5ea;
-  --rule-strong: #c6c6c8;
+  --rule: #24242e;
+  --rule-strong: #34343f;
 
-  --accent: #007aff;
-  --accent-ink: #ffffff;
-  --accent-soft: #e8f1ff;
+  --accent: #00d68f;
+  --accent-ink: #04150e;
+  --accent-soft: rgb(0 214 143 / 14%);
 
   /* Sens comptable. `--debit` vaut délibérément la couleur du texte. */
-  --credit: #248a3d;
+  --credit: #00d68f;
   --debit: var(--ink);
+  --pos: #00d68f;
+  --neg: #ff5c5c;
 
-  --ok: #248a3d;
-  --ok-bg: #e8f8ed;
-  --warn: #a05a00;
-  --warn-bg: #fff4e5;
-  --err: #d70015;
-  --err-bg: #ffeceb;
+  --ok: #00d68f;
+  --ok-bg: rgb(0 214 143 / 12%);
+  --warn: #ffb020;
+  --warn-bg: rgb(255 176 32 / 12%);
+  --err: #ff5c5c;
+  --err-bg: rgb(255 92 92 / 12%);
 
-  --focus: #007aff;
-  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 16px rgb(0 0 0 / 4%);
+  --focus: #00d68f;
+  --shadow: none;
+  --card-border: 1px solid var(--rule);
 
-  /* Rayons : la carte, le contrôle, la pilule. */
-  --r-card: 14px;
-  --r-ctl: 10px;
+  /* Rayons généreux : la carte, le contrôle, la pilule. */
+  --r-card: 20px;
+  --r-ctl: 12px;
   --r-pill: 980px;
 
   /* `-apple-system` est littéralement SF Pro sur iPhone et sur Mac. Aucune
@@ -69,59 +78,45 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Hauteur de la barre d'onglets, reprise par le rembourrage du contenu. */
-  --tabbar: 50px;
+  --tabbar: 58px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --raised: #2c2c2e;
-    --sunken: #2c2c2e;
-    --ink: #ffffff;
-    --ink-2: #98989f;
-    --ink-3: #7c7c80;
-    --ink-4: #48484a;
-    --rule: #38383a;
-    --rule-strong: #48484a;
-    --accent: #0a84ff;
-    --accent-ink: #ffffff;
-    --accent-soft: #0a2743;
-    --credit: #30d158;
-    --ok: #30d158;
-    --ok-bg: #10240f;
-    --warn: #ff9f0a;
-    --warn-bg: #2b1c00;
-    --err: #ff453a;
-    --err-bg: #2c0f0d;
-    --focus: #0a84ff;
-    --shadow: none;
-  }
-}
+:root[data-theme="light"] {
+  color-scheme: light;
 
-:root[data-theme="dark"] {
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --raised: #2c2c2e;
-  --sunken: #2c2c2e;
-  --ink: #ffffff;
-  --ink-2: #98989f;
-  --ink-3: #7c7c80;
-  --ink-4: #48484a;
-  --rule: #38383a;
-  --rule-strong: #48484a;
-  --accent: #0a84ff;
+  --bg: #f4f4f7;
+  --surface: #ffffff;
+  --raised: #f4f4f7;
+  --sunken: #eaeaef;
+
+  --ink: #101014;
+  --ink-2: #61616e;
+  --ink-3: #8a8a96;
+  --ink-4: #c2c2cc;
+
+  --rule: #e6e6ec;
+  --rule-strong: #d0d0d9;
+
+  /* Le menthe vif ne tient pas son contraste sur du blanc : la version claire
+     est assombrie, sans changer de teinte. */
+  --accent: #00a06b;
   --accent-ink: #ffffff;
-  --accent-soft: #0a2743;
-  --credit: #30d158;
-  --ok: #30d158;
-  --ok-bg: #10240f;
-  --warn: #ff9f0a;
-  --warn-bg: #2b1c00;
-  --err: #ff453a;
-  --err-bg: #2c0f0d;
-  --focus: #0a84ff;
-  --shadow: none;
+  --accent-soft: rgb(0 160 107 / 12%);
+
+  --credit: #00875a;
+  --pos: #00875a;
+  --neg: #d92d20;
+
+  --ok: #00875a;
+  --ok-bg: rgb(0 135 90 / 10%);
+  --warn: #a05a00;
+  --warn-bg: rgb(160 90 0 / 10%);
+  --err: #d92d20;
+  --err-bg: rgb(217 45 32 / 10%);
+
+  --focus: #00a06b;
+  --shadow: 0 1px 2px rgb(16 16 20 / 5%), 0 8px 24px rgb(16 16 20 / 5%);
+  --card-border: 1px solid transparent;
 }
 
 * { box-sizing: border-box; }
@@ -140,10 +135,11 @@ body {
   overscroll-behavior-y: none;
 }
 
-h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.022em; text-wrap: balance; }
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.022em; text-wrap: balance; }
 h1 { font-size: 22px; }
 h2 { font-size: 17px; }
-h3 { font-size: 15px; }
+h3 { font-size: 16px; }
+h4 { font-size: 15px; }
 p { margin: 0; }
 
 a { color: var(--accent); }
@@ -153,16 +149,29 @@ a { color: var(--accent); }
 .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
 @media (min-width: 700px) { .wrap { padding: 0 24px; } }
 
-/* ---------------------------------------------------------------- en-tête
-   Sur téléphone, la barre supérieure est fine et translucide, et le nom de
-   l'écran s'affiche en grand juste en dessous — puis se replie dans la barre
-   quand on défile. C'est la signature d'iOS, et elle rend la hauteur d'écran
-   au contenu dès qu'on commence à lire. */
+/* ------------------------------------------------------------- discrétion
+   L'œil de l'en-tête floute tous les montants d'un coup. Le flou est posé par
+   la feuille de style sur les classes qui portent des chiffres, et non par
+   chaque composant : un montant ne peut donc pas échapper au masque parce
+   qu'on aurait oublié de l'envelopper quelque part. */
+:root[data-masque] .money,
+:root[data-masque] .hero dd,
+:root[data-masque] .hero .delta,
+:root[data-masque] .stat dd,
+:root[data-masque] .amount,
+:root[data-masque] .num,
+:root[data-masque] .seg-legende b {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- en-tête */
 header.top {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   padding-top: env(safe-area-inset-top);
@@ -175,7 +184,7 @@ header.top.stuck { border-bottom-color: var(--rule); }
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
+  min-height: 48px;
 }
 
 /* Le titre compact n'apparaît dans la barre qu'une fois le grand titre parti. */
@@ -193,10 +202,6 @@ header.top.stuck { border-bottom-color: var(--rule); }
 }
 header.top.stuck .top-title { opacity: 1; }
 
-/* Le nom de l'application ne paraît que sur écran large. Sur téléphone, le
-   grand titre nomme déjà l'écran, et aucune application iOS ne répète son
-   propre nom dans sa barre de navigation — l'icône de l'écran d'accueil s'en
-   charge. Le laisser s'y enrouler sur trois lignes serait le pire des deux. */
 .mark { font-weight: 700; font-size: 17px; letter-spacing: -0.03em; white-space: nowrap; }
 .mark em { font-style: normal; color: var(--accent); }
 header.top.stuck .mark { opacity: 0; transition: opacity 0.2s; }
@@ -206,15 +211,10 @@ header.top.stuck .mark { opacity: 0; transition: opacity 0.2s; }
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
   color: var(--ink-3);
 }
-/* Deux classes de visibilité, et une seule règle par largeur : les Réglages
-   sont une icône dans l'en-tête sur téléphone, un onglet sur écran large. */
-/* La spécificité compte ici : `nav.tabs a` vaut plus qu'une classe seule, et
-   masquait la règle de visibilité — l'onglet Réglages restait dans la barre du
-   bas, qui comptait six entrées au lieu de cinq. */
 .sm-only { display: none; }
 .wide-only, nav.tabs a.wide-only { display: none; }
 @media (max-width: 699px) {
@@ -224,15 +224,15 @@ header.top.stuck .mark { opacity: 0; transition: opacity 0.2s; }
 @media (min-width: 700px) {
   .wide-only, nav.tabs a.wide-only { display: flex; }
 }
-.top-right .btn.quiet svg { width: 24px; height: 24px; }
+.top-right .btn.quiet svg { width: 22px; height: 22px; }
 
 /* Grand titre. Il vit dans le flux : quand il sort de l'écran, la barre
    supérieure prend le relais. */
 .largetitle {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  padding: 4px 0 12px;
+  padding: 6px 0 14px;
 }
 .largetitle .sub {
   display: block;
@@ -244,8 +244,8 @@ header.top.stuck .mark { opacity: 0; transition: opacity 0.2s; }
 }
 
 /* ------------------------------------------------------------- navigation
-   Téléphone : barre d'onglets en bas, sous le pouce. Écran large : la même
-   liste, posée horizontalement sous l'en-tête. */
+   Cinq onglets, pas six : la cible gagne 40 % de largeur, ce qui se sent au
+   pouce. Révision, Import et Réglages vivent sous « Plus ». */
 nav.tabs {
   position: fixed;
   z-index: 40;
@@ -255,9 +255,9 @@ nav.tabs {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
   border-top: 1px solid var(--rule);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -267,23 +267,21 @@ nav.tabs a {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 7px 2px 6px;
+  gap: 4px;
+  padding: 8px 2px 7px;
   min-height: var(--tabbar);
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--ink-3);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
-nav.tabs a svg { width: 26px; height: 26px; }
+nav.tabs a svg { width: 25px; height: 25px; }
 nav.tabs a.on { color: var(--accent); }
-/* Le badge se pose au coin haut-droit de l'icône. Sans coordonnées, un élément
-   absolu part de sa position statique — ici la ligne de texte — et débordait
-   sur l'onglet voisin. */
 nav.tabs .count {
   position: absolute;
-  top: 3px;
+  top: 5px;
   left: 50%;
   margin-left: 5px;
   min-width: 17px;
@@ -304,7 +302,7 @@ main {
 @media (min-width: 700px) {
   nav.tabs {
     position: sticky;
-    top: 45px;
+    top: 49px;
     bottom: auto;
     grid-auto-columns: auto;
     justify-content: start;
@@ -312,7 +310,7 @@ main {
     padding: 6px 0;
     border-top: 0;
     border-bottom: 1px solid var(--rule);
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
     max-width: 1100px;
     margin: 0 auto;
   }
@@ -320,10 +318,9 @@ main {
     flex-direction: row;
     gap: 7px;
     min-height: 0;
-    padding: 7px 12px;
-    border-radius: var(--r-ctl);
+    padding: 8px 14px;
+    border-radius: var(--r-pill);
     font-size: 14px;
-    font-weight: 500;
   }
   nav.tabs a svg { width: 18px; height: 18px; }
   nav.tabs a:hover { background: var(--sunken); color: var(--ink); }
@@ -333,13 +330,13 @@ main {
   main { padding-bottom: 60px; }
 }
 
-/* ------------------------------------------------------------------ blocs
-   La carte iOS : blanche, arrondie, sans bordure, posée sur le gris groupé. */
+/* ------------------------------------------------------------------ blocs */
 .block {
   background: var(--surface);
+  border: var(--card-border);
   border-radius: var(--r-card);
   box-shadow: var(--shadow);
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   overflow: hidden;
 }
 .block > header {
@@ -347,63 +344,147 @@ main {
   align-items: flex-start;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 16px 18px 0;
+  padding: 18px 18px 0;
 }
 .block > header .grow { flex: 1 1 240px; }
-.block > header p { margin-top: 3px; font-size: 14px; color: var(--ink-2); }
+.block > header p { margin-top: 4px; font-size: 14px; color: var(--ink-2); }
 .block .body { padding: 16px 18px 18px; }
 .block .body.flush { padding: 0; }
 .block > header + .body { padding-top: 14px; }
 
-/* Indicateurs. Pas de filets : l'espace sépare mieux qu'un trait. */
+/* --------------------------------------------------------------- le héros
+   Un seul chiffre par écran, et il est énorme. En dessous, la variation en
+   pastille : le montant dit combien, le pourcentage dit si c'est beaucoup. */
+.hero { padding: 20px 18px 18px; text-align: center; margin: 0; }
+.hero dt { font-size: 14px; color: var(--ink-2); letter-spacing: 0.01em; }
+.hero dd {
+  margin: 6px 0 0;
+  font-size: clamp(40px, 13vw, 58px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.02;
+}
+.hero dd.alert { color: var(--err); }
+.hero .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.hero .delta.up { background: var(--ok-bg); color: var(--pos); }
+.hero .delta.down { background: var(--err-bg); color: var(--neg); }
+.hero .delta .quoi { color: var(--ink-2); font-size: 13px; }
+.hero .delta.up .quoi, .hero .delta.down .quoi { color: inherit; opacity: 0.72; }
+
+/* Sélecteur de période, sous le héros. */
+.ranges {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  margin: 0 18px 4px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+}
+.ranges button {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink-2);
+  -webkit-tap-highlight-color: transparent;
+}
+.ranges button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.ranges button:disabled { opacity: 0.3; cursor: not-allowed; }
+@media (min-width: 700px) { .ranges { max-width: 420px; } }
+
+/* ------------------------------------------------------------- graphiques
+   L'aire dégradée, sans axes : la forme se lit d'un coup d'œil et le chiffre
+   exact se lit en posant le doigt dessus, pas sur une graduation. */
+.chart { position: relative; touch-action: none; }
+.chart svg { display: block; width: 100%; }
+.chart .curseur-date {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+/* Barre segmentée : la répartition en une ligne, la liste juste en dessous.
+   Deux fois moins haute qu'un anneau sur téléphone, et un petit poste y reste
+   visible au lieu de se réduire à un fil. */
+.seg {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--sunken);
+}
+.seg i { display: block; height: 100%; min-width: 3px; }
+.seg-legende { list-style: none; margin: 14px 0 0; padding: 0; }
+.seg-legende li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+}
+.seg-legende li:last-child { border-bottom: 0; }
+.seg-legende .puce { flex: none; width: 10px; height: 10px; border-radius: var(--r-pill); }
+.seg-legende .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-legende b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.seg-legende .part { min-width: 46px; text-align: right; font-size: 13px; color: var(--ink-3); }
+
+/* ------------------------------------------------------------ indicateurs
+   Volontairement discrets : ils entourent le héros, ils ne le concurrencent
+   pas. Deux colonnes sur téléphone plutôt qu'une, pour rester dans l'écran. */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 2px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
   margin: 0;
   background: var(--rule);
+  border-top: 1px solid var(--rule);
 }
 .stat { padding: 14px 18px; background: var(--surface); }
-.stat dt {
-  margin: 0 0 3px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
+/* Un nombre impair d'indicateurs laissait une cellule vide, qui se lisait comme
+   un défaut d'affichage : la dernière prend alors toute la largeur. */
+.stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.stat dt { margin: 0 0 3px; font-size: 13px; color: var(--ink-2); }
 .stat dd {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
-.stat .sub { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--ink-3); }
+.stat .sub { display: block; margin-top: 3px; font-size: 12.5px; font-weight: 400; color: var(--ink-3); }
+.stat dd.alert { color: var(--err); }
 
-/* ------------------------------------------------------------------ héros
-   Le reste à vivre, seul, en très grand : ce qu'on vient chercher en ouvrant
-   l'application. */
-.hero { padding: 22px 18px 20px; text-align: center; }
-.hero dt { font-size: 15px; color: var(--ink-2); }
-.hero dd {
-  margin: 4px 0 0;
-  font-size: clamp(40px, 13vw, 56px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.05;
-}
-.hero .delta { margin-top: 8px; font-size: 14px; color: var(--ink-2); }
-.hero .delta b { font-weight: 600; }
-/* Le seul rouge du tableau de bord : un mois vécu au-delà de ce qui est entré.
-   Une dépense, elle, reste dans la couleur du texte. */
-.hero dd.alert { color: var(--err); }
-
-/* Anneau de répartition. */
+/* Anneau — conservé pour les répartitions à peu de parts. */
 .ring-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  padding: 4px 0 4px;
+  padding: 4px 0;
 }
 @media (min-width: 620px) {
   .ring-wrap { flex-direction: row; align-items: center; gap: 28px; }
@@ -430,34 +511,69 @@ tbody tr:hover { background: var(--raised); }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mono { font-family: var(--mono); font-size: 13px; }
 /* Un débit n'est pas une anomalie : il garde la couleur du texte. */
-.neg { color: var(--debit); }
-.pos { color: var(--credit); font-weight: 500; }
+.neg { color: var(--neg); }
+.pos { color: var(--pos); font-weight: 500; }
 .muted { color: var(--ink-3); }
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tight td, .tight th { padding-left: 8px; padding-right: 8px; }
 
-/* Listes tactiles : la forme que prennent les tableaux sur téléphone. */
+/* --------------------------------------------------------- lignes de liste
+   La ligne Finary : pastille à gauche, nom en gras, sous-titre effacé, montant
+   à droite. C'est la forme que prennent tous les journaux de l'application. */
 .rows { list-style: none; margin: 0; padding: 0; }
 .rows li {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 13px 18px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--rule);
-  min-height: 60px;
+  min-height: 64px;
 }
 .rows li:last-child { border-bottom: 0; }
 .rows .lead { flex: 1; min-width: 0; }
-.rows .lead b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.lead {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rows .lead b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rows .lead span {
   display: block;
+  margin-top: 1px;
   font-size: 13px;
   color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rows .amount { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rows .amount { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rows .amount .sous {
+  display: block;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* Pastille ronde à initiale. La teinte est déduite du nom : le même tiers
+   garde la même couleur d'une session à l'autre, sans qu'aucune liste de
+   correspondances soit stockée — et sans qu'aucun logo soit téléchargé, ce qui
+   contredirait « tout reste local ». */
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-pill);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
 
 /* -------------------------------------------------------------- contrôles */
 .btn {
@@ -467,7 +583,7 @@ tbody tr:hover { background: var(--raised); }
   gap: 6px;
   font: inherit;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   min-height: 44px;
   padding: 10px 18px;
@@ -481,9 +597,9 @@ tbody tr:hover { background: var(--raised); }
 }
 .btn:hover { background: var(--rule); }
 .btn:active { opacity: 0.6; }
-.btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { background: var(--accent); filter: brightness(1.06); }
-.btn.quiet { background: none; color: var(--accent); padding: 6px 10px; min-height: 36px; }
+.btn.quiet { background: none; color: var(--accent); padding: 6px 10px; min-height: 40px; }
 .btn.quiet:hover { background: var(--sunken); }
 .btn.danger { background: none; color: var(--err); }
 .btn.danger:hover { background: var(--err-bg); }
@@ -496,7 +612,7 @@ input, select, textarea {
   padding: 11px 12px;
   border-radius: var(--r-ctl);
   border: 1px solid var(--rule);
-  background: var(--surface);
+  background: var(--raised);
   color: var(--ink);
   min-height: 44px;
 }
@@ -505,27 +621,27 @@ input.num-in { width: 140px; text-align: right; font-variant-numeric: tabular-nu
 label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; color: var(--ink-2); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 
-/* Sélecteur segmenté — utilisé pour le thème dans les Réglages. */
+/* Sélecteur segmenté — réglages, bascules mois/année. */
 .segmented {
   display: inline-flex;
   padding: 2px;
   gap: 2px;
-  border-radius: var(--r-ctl);
+  border-radius: var(--r-pill);
   background: var(--sunken);
 }
 .segmented button {
   font: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  padding: 7px 14px;
-  min-height: 34px;
+  padding: 7px 16px;
+  min-height: 36px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-pill);
   background: none;
-  color: var(--ink);
+  color: var(--ink-2);
 }
-.segmented button[aria-pressed="true"] { background: var(--surface); box-shadow: var(--shadow); }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
 
 .pill {
   display: inline-block;
@@ -566,7 +682,11 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
 .drop.hot { border-color: var(--accent); background: var(--accent-soft); }
 .drop strong { display: block; margin-bottom: 4px; font-size: 18px; }
 
-.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+/* Deux colonnes sur écran large, une seule sur téléphone. Ce nom appartient à
+   cette grille et à rien d'autre : une barre de décomposition qui s'appelait
+   `.split` a déjà écrasé cette règle une fois, et réduit les deux cartes du
+   tableau de bord à six pixels de haut. */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
 
 .legend { display: flex; flex-direction: column; gap: 10px; font-size: 15px; width: 100%; }
@@ -580,7 +700,8 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   width: 100%;
   max-width: 380px;
   background: var(--surface);
-  border-radius: 18px;
+  border: var(--card-border);
+  border-radius: var(--r-card);
   box-shadow: var(--shadow);
   padding: 28px 24px;
 }
@@ -603,36 +724,13 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   max-width: min(560px, 92vw);
   padding: 12px 18px;
   border-radius: var(--r-pill);
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
   font-size: 15px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 40%);
 }
 @media (min-width: 700px) { .toast { bottom: 24px; } }
-
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
-}
-
-/* ------------------------------------------------------ socle et arbitrable
-   Deux parts d'un même tout : une barre les compare mieux qu'un camembert,
-   parce qu'on lit une longueur plus vite qu'un angle. */
-.socle-barre {
-  height: 10px;
-  border-radius: var(--r-pill);
-  background: var(--sunken);
-  overflow: hidden;
-}
-.socle-barre i { display: block; height: 100%; background: var(--accent); }
-.socle-legende {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-.socle .hint { margin-top: 8px; }
 
 /* La proposition qui suit une correction : un bandeau à portée du pouce, qui
    n'interrompt pas le classement en cours. */
@@ -644,11 +742,36 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   text-align: left;
 }
 .toast.proposition .btn { min-height: 36px; padding: 6px 14px; font-size: 15px; }
-.toast.proposition .btn.quiet { color: var(--bg); opacity: 0.7; }
 @media (max-width: 520px) {
   .toast.proposition { flex-wrap: wrap; max-width: 94vw; }
   .toast.proposition span { flex: 1 1 100%; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ------------------------------------------------------ socle et arbitrable
+   Deux parts d'un même tout : une barre les compare mieux qu'un camembert,
+   parce qu'on lit une longueur plus vite qu'un angle. */
+.socle-barre {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  overflow: hidden;
+}
+.socle-barre i { display: block; height: 100%; background: var(--accent); }
+.socle-legende {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 14px;
+  margin-top: 12px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.socle-legende > span { white-space: nowrap; }
+.socle .hint { margin-top: 8px; }
 
 /* ------------------------------------------------------------- budgets
    La barre porte deux informations : ce qui est consommé (le remplissage) et
@@ -660,46 +783,69 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   justify-content: space-between;
   gap: 12px;
   font-size: 15px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
+.budget-tete .num { font-variant-numeric: tabular-nums; }
 .budget-barre {
   position: relative;
-  height: 10px;
+  height: 12px;
   border-radius: var(--r-pill);
   background: var(--sunken);
   overflow: hidden;
 }
-.budget-barre i { display: block; height: 100%; background: var(--accent); }
+.budget-barre i { display: block; height: 100%; background: var(--accent); border-radius: var(--r-pill); }
 .budget-barre.depasse i { background: var(--err); }
 /* Le repère de rythme : un trait fin, pas une couleur de plus. */
 .budget-barre b {
   position: absolute;
   top: -3px;
   width: 2px;
-  height: 16px;
+  height: 18px;
   background: var(--ink-2);
   border-radius: 1px;
 }
-.budget-note { margin-top: 6px; font-size: 13px; color: var(--ink-3); }
+.budget-note { margin-top: 7px; font-size: 13px; color: var(--ink-3); }
 .budget-note .alerte { color: var(--warn); font-weight: 500; }
 .budget-barre.depasse ~ .budget-note .alerte { color: var(--err); }
 
-/* Un solde projeté négatif est une anomalie, pas une dépense : le rouge s'y
-   applique, comme au reste à vivre négatif. */
-.stat dd.alert { color: var(--err); }
-
-/* ------------------------------------------------------- patrimoine
-   La variation d'un mois se lit en deux morceaux : ce que le ménage a mis de
-   côté, et ce que le marché a fait. Deux teintes sur une même échelle — un
-   mois à 200 francs ne doit pas paraître aussi fourni qu'un mois à 8'000. */
-.split {
+/* --------------------------------------------------- décomposition du mois
+   Deux teintes sur une même échelle : ce que le ménage a mis de côté, et ce
+   que le marché a fait. */
+.decompo {
   display: flex;
   gap: 3px;
   align-items: center;
   height: 6px;
-  margin-top: 7px;
+  margin-top: 8px;
 }
-.split i { display: block; height: 100%; border-radius: var(--r-pill); min-width: 2px; }
-.split i.ep { background: var(--accent); }
-.split i.val { background: #ff9500; }
-.split i.val.neg { background: var(--err); }
+.decompo i { display: block; height: 100%; border-radius: var(--r-pill); min-width: 2px; }
+.decompo i.ep { background: var(--accent); }
+.decompo i.val { background: #7d5cff; }
+.decompo i.val.neg { background: var(--err); }
+
+/* ------------------------------------------------------------------ Plus
+   L'écran de débordement : des lignes larges, une par destination. */
+.menu { list-style: none; margin: 0; padding: 0; }
+.menu li { border-bottom: 1px solid var(--rule); }
+.menu li:last-child { border-bottom: 0; }
+.menu a, .menu button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 18px;
+  min-height: 60px;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  color: var(--ink);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.menu a:hover, .menu button:hover { background: var(--raised); }
+.menu svg { width: 24px; height: 24px; color: var(--accent); flex: none; }
+.menu .grow { flex: 1; min-width: 0; }
+.menu .grow small { display: block; font-size: 13px; color: var(--ink-2); }
+.menu .chev { width: 20px; height: 20px; color: var(--ink-4); flex: none; }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import Donut, { foldSlices } from './Donut.jsx';
+import Segments from './Segments.jsx';
 import { allocation, setCible } from '../lib/patrimoine.js';
 import { fmt, fmtRate, parseRate } from '../lib/money.js';
 import { edit } from '../store/useBudget.js';
@@ -20,7 +20,6 @@ export default function Allocation({ data, period }) {
   const a = allocation(data, period);
   if (!a.lignes.length) return null;
 
-  const slices = foldSlices(a.lignes.map((l) => ({ name: l.label, value: l.valeur })));
   const derives = a.lignes.filter((l) => l.ecartCents !== null);
 
   return (
@@ -37,30 +36,21 @@ export default function Allocation({ data, period }) {
       </header>
 
       <div className="body">
-        <div className="ring-wrap">
-          <Donut slices={slices} centre={fmt(a.total)} caption="actifs" />
-          <div className="legend">
-            {slices.map((s) => (
-              <div key={s.name}>
-                <i style={{ background: s.color }} />
-                {s.name}
-                <span className="num">{fmt(s.value)} · {pct(s.share)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Segments
+          entries={a.lignes.map((l) => ({ name: l.label, value: l.valeur }))}
+          vide="Aucune position valorisée."
+        />
       </div>
 
       <div className="body flush">
         <div className="scroll">
           <table>
-            {/* Quatre colonnes, pas cinq : sur téléphone, l'écart — qui est le
-                seul chiffre actionnable du tableau — se retrouverait hors de
-                l'écran. La part rejoint donc le nom de la classe. */}
+            {/* Trois colonnes : la valeur et la part sont déjà dans la
+                légende de la barre juste au-dessus, et les répéter poussait
+                l'écart — le seul chiffre actionnable — hors de l'écran. */}
             <thead>
               <tr>
                 <th>Classe</th>
-                <th className="num">Valeur</th>
                 <th className="num">Cible</th>
                 <th className="num">Écart</th>
               </tr>
@@ -115,9 +105,10 @@ function LigneClasse({ ligne }) {
     <tr>
       <td>
         {ligne.label}
-        <span className="muted" style={{ display: 'block', fontSize: 12 }}>{pct(ligne.part)} du total</span>
+        <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+          {fmt(ligne.valeur)} · {pct(ligne.part)}
+        </span>
       </td>
-      <td className="num">{fmt(ligne.valeur)}</td>
       <td className="num">
         <input className="num-in" style={{ width: 74 }} inputMode="decimal" placeholder="—"
           value={saisie} onChange={(e) => poser(e.target.value)} />

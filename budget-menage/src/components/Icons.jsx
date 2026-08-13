@@ -82,6 +82,40 @@ export const IconPayees = (p) => (
   </Glyph>
 );
 
+/** Plus — l'écran de débordement : révision, import, réglages. */
+export const IconMore = (p) => (
+  <Glyph {...p}>
+    <circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </Glyph>
+);
+
+/** L'œil ouvert : les montants sont lisibles. */
+export const IconEye = (p) => (
+  <Glyph {...p}>
+    <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="2.9" />
+  </Glyph>
+);
+
+/** L'œil barré : les montants sont masqués. */
+export const IconEyeOff = (p) => (
+  <Glyph {...p}>
+    <path d="M9.9 5.9A8.6 8.6 0 0 1 12 5.8c6 0 9.5 6.2 9.5 6.2a16 16 0 0 1-2.6 3.3" />
+    <path d="M6.4 7.4A15.7 15.7 0 0 0 2.5 12S6 18.2 12 18.2a8.9 8.9 0 0 0 3.7-.78" />
+    <path d="m10 10.1a2.9 2.9 0 0 0 4 4" />
+    <path d="m3.5 3.5 17 17" />
+  </Glyph>
+);
+
+/** Le chevron des lignes de menu. */
+export const IconChevron = (p) => (
+  <Glyph {...p}>
+    <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />
+  </Glyph>
+);
+
 /** Réglages. */
 export const IconSettings = (p) => (
   <Glyph {...p}>

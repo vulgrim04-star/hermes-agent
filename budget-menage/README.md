@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 64 tests
+npm test                    # 192 tests
 ```
 
 ---
@@ -272,6 +272,33 @@ rejoignent votre compte.
 (rechargeable) et les écritures en `.csv` (UTF-8 avec BOM, point-virgule : Excel l'ouvre sans
 assistant d'import).
 
+## L'interface
+
+Mise en page **façon Finary**, pensée pour le téléphone d'abord.
+
+- **Sombre par défaut**, quel que soit le réglage du téléphone : c'est un parti pris d'identité,
+  pas une conséquence des préférences système. Conséquence pour la feuille de style : `:root` nu
+  porte la palette sombre, le clair ne vaut que sous `[data-theme="light"]`, et **aucune couleur
+  ne dépend de `prefers-color-scheme`** — c'est le script du thème qui stampe la racine. Il
+  n'existe donc aucun état où le texte d'un thème se poserait sur le fond de l'autre.
+- **Le vert menthe dit deux choses qui vont dans le même sens** : ce qui est actionnable, et ce
+  qui est positif. Le rouge corail dit l'inverse. Un débit ordinaire, lui, garde la couleur du
+  texte — un relevé n'est pas rouge parce qu'on a fait des courses.
+- **Un seul chiffre domine par écran** — le reste à vivre sur le budget, le patrimoine net sur le
+  patrimoine — avec sa variation en pastille, **en francs et en pourcentage** : le montant dit
+  combien, le pourcentage dit si c'est beaucoup.
+- **Une aire dégradée sans axes**, et le chiffre exact au bout du doigt : on ne lit jamais une
+  valeur sur une graduation, on la lit en pointant la courbe. Le sélecteur de période grise les
+  durées plus longues que l'historique disponible, au lieu de rendre deux fois la même courbe.
+- **Une barre segmentée** plutôt qu'un anneau pour les répartitions : douze pixels de haut contre
+  cent quatre-vingts, et un petit poste y reste visible.
+- **Cinq onglets** — Budget, Écritures, Tiers, Patrimoine, Plus. Révision, Import et Réglages
+  vivent sous « Plus », avec la pastille des écritures à trancher reportée sur l'onglet.
+- **Une pastille ronde par ligne**, dont la teinte est déduite du nom : le même tiers garde sa
+  couleur d'une session à l'autre, sans qu'aucun logo ne soit téléchargé.
+- **Un œil masque tous les montants** d'un geste. Le flou est posé par la feuille de style sur les
+  classes qui portent des chiffres : aucun montant ne peut lui échapper par oubli.
+
 ## Organisation du code
 
 ```
@@ -284,13 +311,13 @@ budget-app/     la version locale du même projet, dans le même dépôt : serve
 src/lib/        montants, dates, lecture CSV et MT940, plan de comptes, journal, patrimoine,
                 écriture de classeurs Excel — sans dépendance à React
 src/store/      session Supabase, état du budget et sa synchronisation
-src/pages/      Connexion, Import, Tableau de bord, Écritures, Révision, Patrimoine, Réglages
+src/pages/      Connexion, Import, Budget, Écritures, Tiers, Révision, Patrimoine, Plus, Réglages
 supabase/       schéma et règles d'accès, source de vérité versionnée
 ```
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 64 tests.
+et c'est là que vivent les 192 tests.
 
 ## Limites connues
 

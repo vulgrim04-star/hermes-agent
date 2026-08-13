@@ -18,15 +18,16 @@ const TREATMENTS = [
 ];
 
 const THEME_LABELS = [
-  ['auto', 'Automatique'],
-  ['light', 'Clair'],
   ['dark', 'Sombre'],
+  ['light', 'Clair'],
+  ['auto', 'Téléphone'],
 ];
 
 /**
  * Apparence.
  *
- * « Automatique » suit le réglage du téléphone ; les deux autres le
+ * L'application est **sombre par défaut** : c'est un parti pris, pas une
+ * conséquence du réglage du téléphone. « Clair » et « Téléphone » le
  * contredisent délibérément. Le choix vaut pour ce navigateur seulement : c'est
  * une préférence d'affichage, elle n'a rien à faire dans un journal comptable
  * partagé entre appareils.
