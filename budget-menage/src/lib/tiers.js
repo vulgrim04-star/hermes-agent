@@ -12,7 +12,7 @@
  * écritures dont il est tiré — un tiers périmé serait pire qu'aucun tiers.
  */
 
-import { normLabel } from './ledger.js';
+import { normLabel } from './normalise.js';
 
 /*
  * Ce qu'il faut retirer d'un libellé pour retrouver le commerçant.

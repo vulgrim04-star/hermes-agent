@@ -633,3 +633,19 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
   font-variant-numeric: tabular-nums;
 }
 .socle .hint { margin-top: 8px; }
+
+/* La proposition qui suit une correction : un bandeau à portée du pouce, qui
+   n'interrompt pas le classement en cours. */
+.toast.proposition {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 18px;
+  text-align: left;
+}
+.toast.proposition .btn { min-height: 36px; padding: 6px 14px; font-size: 15px; }
+.toast.proposition .btn.quiet { color: var(--bg); opacity: 0.7; }
+@media (max-width: 520px) {
+  .toast.proposition { flex-wrap: wrap; max-width: 94vw; }
+  .toast.proposition span { flex: 1 1 100%; }
+}

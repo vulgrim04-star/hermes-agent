@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
 
 import { categoriseTiers, groupByPayee, payeeKey } from './tiers.js';
 import { detectRecurring, fixedVsDiscretionary } from './recurrences.js';
-import { emptyState, normLabel } from './ledger.js';
+import { applyRules, emptyState, normLabel } from './ledger.js';
+import { accepterRegle, proposerRegle, rejouerRegles } from './apprentissage.js';
 
 let compteur = 0;
 function ecriture(state, { label, date, cents, cat = null, cp = null, transfer = 0 }) {
@@ -267,5 +268,76 @@ describe('récurrences interrompues', () => {
     mensuel(state, 'PARKING', -14595, 6);            // janvier → juin
     ecriture(state, { label: 'COOP', date: '2026-07-20', cents: -4000 });
     expect(detectRecurring(state)[0].dormante).toBe(false);
+  });
+});
+
+describe('apprendre des corrections', () => {
+  it('propose de classer les autres écritures du même tiers', () => {
+    const state = emptyState();
+    mensuel(state, 'MIGROL SERVICE 5351XXXXXXXX0381', -4500, 4);
+    state.tx[0].cat = 'Carburant';                       // corrigée à la main
+
+    const p = proposerRegle(state, state.tx[0], 'Carburant');
+    expect(p).toMatchObject({ kind: 'tiers', pattern: 'MIGROL SERVICE', cat: 'Carburant' });
+    expect(p.restantes).toBe(3);
+  });
+
+  it('ne propose rien quand il n’y a rien d’autre à classer', () => {
+    // Une proposition sans effet à chaque clic ferait ignorer les utiles.
+    const state = emptyState();
+    ecriture(state, { label: 'FNAC', date: '2026-03-02', cents: -12000, cat: 'Shopping' });
+    expect(proposerRegle(state, state.tx[0], 'Shopping')).toBeNull();
+  });
+
+  it('accepte la règle, classe l’historique, et la conserve pour l’avenir', () => {
+    const state = emptyState();
+    mensuel(state, 'SPOTIFY 5351XXXXXXXX0381 06', -2695, 5);
+    state.tx[0].cat = 'Abonnements numériques';
+
+    const p = proposerRegle(state, state.tx[0], 'Abonnements numériques');
+    expect(accepterRegle(state, p, applyRules)).toBe(4);
+    expect(state.tx.every((t) => t.cat === 'Abonnements numériques')).toBe(true);
+    // Conservée : le prochain relevé n'aura pas à être reclassé.
+    expect(state.rules).toEqual([
+      { kind: 'tiers', pattern: 'SPOTIFY', cat: 'Abonnements numériques' },
+    ]);
+  });
+
+  it('ne crée pas deux fois la même règle', () => {
+    const state = emptyState();
+    mensuel(state, 'COOP', -4000, 4);
+    const p = proposerRegle(state, state.tx[0], 'Courses');
+    accepterRegle(state, p, applyRules);
+    accepterRegle(state, p, applyRules);
+    expect(state.rules).toHaveLength(1);
+  });
+
+  it('une règle de tiers vaut pour les libellés que le motif manquerait', () => {
+    // Deux rédactions différentes du même commerçant : un motif fondé sur le
+    // libellé complet en raterait une, le tiers les prend toutes les deux.
+    const state = emptyState();
+    ecriture(state, { label: 'MIGROL SERVICE 5351XXXXXXXX0381 06', date: '2026-01-05', cents: -4500 });
+    ecriture(state, { label: 'MIGROL SERVICE 9911XXXXXXXX4402 11', date: '2026-02-05', cents: -5200 });
+    state.rules.push({ kind: 'tiers', pattern: 'MIGROL SERVICE', cat: 'Carburant' });
+    expect(applyRules(state, state.tx)).toBe(2);
+  });
+
+  it('les anciennes règles sans « kind » restent des motifs et fonctionnent', () => {
+    const state = emptyState();
+    ecriture(state, { label: 'ACHAT COOP PRONTO FRIBOURG', date: '2026-01-05', cents: -1500 });
+    state.rules.push({ pattern: 'COOP PRONTO', cat: 'Courses' });   // forme historique
+    expect(applyRules(state, state.tx)).toBe(1);
+    expect(state.tx[0].cat).toBe('Courses');
+  });
+
+  it('simule un rejeu sans toucher au journal', () => {
+    const state = emptyState();
+    mensuel(state, 'COOP', -4000, 3);
+    state.rules.push({ kind: 'tiers', pattern: 'COOP', cat: 'Courses' });
+
+    expect(rejouerRegles(state, applyRules, { simuler: true })).toBe(3);
+    expect(state.tx.every((t) => t.cat === null)).toBe(true);   // rien n'a bougé
+    expect(rejouerRegles(state, applyRules)).toBe(3);
+    expect(state.tx.every((t) => t.cat === 'Courses')).toBe(true);
   });
 });

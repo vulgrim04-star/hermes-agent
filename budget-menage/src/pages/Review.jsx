@@ -5,6 +5,7 @@ import { catOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
 import { applyRules, decideTransfer, ruleScope, suggestPattern } from '../lib/ledger.js';
+import { accepterRegle, proposerRegle } from '../lib/apprentissage.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
 /**
@@ -15,6 +16,7 @@ import { edit, useBudget } from '../store/useBudget.js';
 export default function Review() {
   const data = useBudget((s) => s.data);
   const [ruleFor, setRuleFor] = useState(null);
+  const [proposition, setProposition] = useState(null);
 
   const pairs = data.transfers.filter((p) => p.status === 'propose');
   const queue = data.tx.filter((t) => !t.cat && !t.transfer);
@@ -33,6 +35,32 @@ export default function Review() {
                 dépense de plus, la dépense a eu lieu à l’achat.
               </p>
             </div>
+            {/*
+              Confirmer cinquante-trois paires une par une décourage, et une
+              file qu'on n'épuise jamais finit par être ignorée — ce qui laisse
+              des doubles comptages dans les totaux.
+
+              Le geste reste **délibéré** : la liste est sous les yeux, le
+              nombre et le montant sont annoncés, et chaque paire peut être
+              rejetée avant. Ce qui est écarté, c'est la répétition, pas la
+              décision.
+            */}
+            {pairs.length > 1 && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => edit((s) => {
+                  for (const pair of s.transfers.filter((p) => p.status === 'propose')) {
+                    decideTransfer(s, pair.id, 'confirme');
+                  }
+                })}
+              >
+                Confirmer les {pairs.length} paires ({fmt(pairs.reduce((somme, pair) => {
+                  const out = byId.get(pair.out);
+                  return somme + (out ? Math.abs(out.cents) : 0);
+                }, 0))})
+              </button>
+            )}
           </header>
           <div className="body flush">
             <div className="scroll">
@@ -127,10 +155,15 @@ export default function Review() {
                       <td>
                         <CategorySelect
                           value={tx.cat}
-                          onChange={(c) => edit((s) => {
-                            const row = s.tx.find((t) => t.id === tx.id);
-                            if (row) row.cat = c;
-                          })}
+                          onChange={(c) => {
+                            edit((s) => {
+                              const row = s.tx.find((t) => t.id === tx.id);
+                              if (row) row.cat = c;
+                            });
+                            // Classer une ligne apprend quelque chose sur son
+                            // tiers : on le propose, on ne l'applique pas.
+                            setProposition(c ? proposerRegle(data, tx, c) : null);
+                          }}
                         />
                       </td>
                       <td>
@@ -154,8 +187,42 @@ export default function Review() {
         )}
       </div>
 
+      {proposition && (
+        <Proposition
+          proposition={proposition}
+          onAccepter={() => {
+            edit((s) => accepterRegle(s, proposition, applyRules));
+            setProposition(null);
+          }}
+          onRefuser={() => setProposition(null)}
+        />
+      )}
+
       {ruleFor && <RuleDialog tx={ruleFor} onClose={() => setRuleFor(null)} />}
     </>
+  );
+}
+
+/**
+ * La proposition qui suit une correction.
+ *
+ * Elle n'apparaît que lorsqu'elle a un effet — le tiers a d'autres écritures en
+ * attente — et elle annonce **combien**. Une proposition sans chiffre serait
+ * une invitation à faire confiance ; avec le chiffre, elle se décide.
+ *
+ * Elle est posée en bas de l'écran, à portée du pouce, et n'interrompt rien :
+ * on peut continuer à classer sans y répondre.
+ */
+function Proposition({ proposition, onAccepter, onRefuser }) {
+  return (
+    <div className="toast proposition" role="status">
+      <span>
+        <strong>{proposition.pattern}</strong> — {proposition.restantes} autre(s) écriture(s) à
+        classer en « {proposition.cat} »
+      </span>
+      <button type="button" className="btn primary" onClick={onAccepter}>Tout classer</button>
+      <button type="button" className="btn quiet" onClick={onRefuser} aria-label="Ignorer">✕</button>
+    </div>
   );
 }
 

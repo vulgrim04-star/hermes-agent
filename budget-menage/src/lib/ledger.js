@@ -16,15 +16,13 @@
 import { BANK_MAP_SEED, kindOf, rootOf } from './categories.js';
 import { dayGap, monthBounds } from './dates.js';
 import { bankBalanceAt } from './networth.js';
+import { normLabel } from './normalise.js';
+import { payeeKey } from './tiers.js';
 
-export function normLabel(label) {
-  return String(label)
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, ' ')
-    .trim();
-}
+// Ré-exporté : `normLabel` a longtemps vécu ici, et une bonne part du code
+// l'importe encore de ce module.
+export { normLabel };
+
 
 export function emptyState() {
   const bank = {};
@@ -122,13 +120,32 @@ export function commitStatements(state, statements) {
 
 /* -------------------------------------------------------- catégorisation */
 
+/**
+ * Une règle porte soit sur un **motif** contenu dans le libellé, soit sur un
+ * **tiers** entier.
+ *
+ * La règle de tiers est la plus sûre des deux : elle vise la contrepartie
+ * telle que le regroupement l'a établie, sans dépendre de la façon dont la
+ * banque a rédigé cette ligne-là. Un motif reste utile pour attraper une
+ * famille de libellés que le regroupement sépare.
+ *
+ * Une règle sans `kind` est un motif : c'est la forme qu'avaient toutes les
+ * règles avant les tiers, et elles doivent continuer de fonctionner telles
+ * quelles.
+ */
+export function ruleMatches(rule, tx) {
+  if (rule.kind === 'tiers') return payeeKey(tx.label, tx.cp) === rule.pattern;
+  const needle = normLabel(rule.pattern);
+  return Boolean(needle) && tx.norm.includes(needle);
+}
+
 /** Ne comble que les vides : une catégorie posée à la main n'est jamais touchée. */
 export function applyRules(state, list) {
   let n = 0;
   for (const tx of list) {
     if (tx.cat) continue;
     for (const rule of state.rules) {
-      if (tx.norm.includes(normLabel(rule.pattern))) { tx.cat = rule.cat; n += 1; break; }
+      if (ruleMatches(rule, tx)) { tx.cat = rule.cat; n += 1; break; }
     }
   }
   return n;
@@ -158,10 +175,16 @@ export function suggestPattern(label) {
   return words.slice(0, 3).join(' ');
 }
 
-export function ruleScope(state, pattern) {
-  const needle = normLabel(pattern);
-  if (!needle) return 0;
-  return state.tx.filter((t) => !t.cat && t.norm.includes(needle)).length;
+/**
+ * Combien d'écritures **non classées** une règle prendrait.
+ *
+ * C'est ce chiffre qui permet de juger une règle avant de la poser : « celle-ci
+ * en classerait 23 » se décide, « celle-ci a l'air bien » ne se décide pas.
+ */
+export function ruleScope(state, pattern, kind = 'motif') {
+  if (!pattern) return 0;
+  const rule = { pattern, kind };
+  return state.tx.filter((t) => !t.cat && !t.transfer && ruleMatches(rule, t)).length;
 }
 
 /* ------------------------------------------------------ transferts internes */
