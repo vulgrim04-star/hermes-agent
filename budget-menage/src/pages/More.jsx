@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 
-import { IconChevron, IconImport, IconReview, IconSettings } from '../components/Icons.jsx';
+import { IconChevron, IconImport, IconReview, IconSettings, IconWallet } from '../components/Icons.jsx';
 import { leaveDemo } from '../lib/demo.js';
-import { pendingCount } from '../lib/ledger.js';
+import { accountBalances, pendingCount } from '../lib/ledger.js';
 import { signOut } from '../store/useAuth.js';
 import { useBudget } from '../store/useBudget.js';
 
@@ -20,6 +20,7 @@ import { useBudget } from '../store/useBudget.js';
 export default function More({ local = false, demo = false, email = null }) {
   const data = useBudget((s) => s.data);
   const pending = pendingCount(data);
+  const soldes = accountBalances(data);
 
   return (
     <>
@@ -30,6 +31,11 @@ export default function More({ local = false, demo = false, email = null }) {
               ? `${pending.total} écriture(s) à trancher`
               : 'rien en attente'}
             marque={pending.total > 0 ? pending.total : null} />
+          <Ligne to="/comptes" Icon={IconWallet} titre="Comptes"
+            sous={soldes.etablis === soldes.comptes.length
+              ? `${soldes.comptes.length} compte(s), tous soldés`
+              : `${soldes.inconnus} compte(s) sans solde établi`}
+            marque={soldes.inconnus > 0 ? soldes.inconnus : null} />
           <Ligne to="/import" Icon={IconImport} titre="Importer un relevé"
             sous="CSV ou MT940, lu dans ce navigateur" />
           <Ligne to="/reglages" Icon={IconSettings} titre="Réglages"

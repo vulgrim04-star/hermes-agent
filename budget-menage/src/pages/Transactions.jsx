@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
-import { normLabel } from '../lib/ledger.js';
+import { normLabel, setNote } from '../lib/ledger.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
 const PAGE = 150;
@@ -36,7 +36,11 @@ export default function Transactions() {
 
   const needle = normLabel(query);
   const rows = data.tx.filter(
-    (t) => !needle || t.norm.includes(needle) || (t.cat && normLabel(t.cat).includes(needle)),
+    (t) => !needle
+      || t.norm.includes(needle)
+      || (t.cat && normLabel(t.cat).includes(needle))
+      // Une note se cherche : c'est souvent pour ça qu'on l'a écrite.
+      || (t.note && normLabel(t.note).includes(needle)),
   );
   const shown = all ? rows : rows.slice(0, PAGE);
   const balance = rows.reduce((sum, t) => sum + t.cents, 0);
@@ -81,6 +85,7 @@ export default function Transactions() {
                   {frDate(tx.date)}
                   {tx.cat ? <> · {tx.cat}</> : <> · <span style={{ color: 'var(--warn)' }}>sans catégorie</span></>}
                   {tx.transfer === 1 && <> · transfert interne</>}
+                  {tx.note && <> · <span style={{ color: 'var(--accent)' }}>{tx.note}</span></>}
                 </span>
               </button>
               <span className={tx.cents < 0 ? 'amount' : 'amount pos'}>{fmt(tx.cents)}</span>
@@ -93,6 +98,7 @@ export default function Transactions() {
                       <CategorySelect value={tx.cat} onChange={(c) => setCategory(tx.id, c)} />
                     </label>
                   </div>
+                  <Note tx={tx} />
                   <p className="hint">
                     Compte {(data.accounts[tx.acc] || {}).label || tx.acc}
                     {tx.ext && <> · catégorie de la banque : {tx.ext}</>}
@@ -112,5 +118,29 @@ export default function Transactions() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * L'annotation d'une écriture.
+ *
+ * Une catégorie range, une note explique : « remboursé par Marie », « acompte,
+ * solde en mars ». Elle s'enregistre à la sortie du champ plutôt qu'à chaque
+ * frappe — un journal de plusieurs centaines d'écritures se réécrirait
+ * entièrement à chaque lettre tapée.
+ */
+function Note({ tx }) {
+  const [texte, setTexte] = useState(tx.note || '');
+
+  return (
+    <label className="field" style={{ marginTop: 12 }}>
+      Note
+      <input
+        value={texte}
+        placeholder="remboursé par Marie, acompte, facture 2024…"
+        onChange={(e) => setTexte(e.target.value)}
+        onBlur={() => { if ((tx.note || '') !== texte.trim()) edit((s) => setNote(s, tx.id, texte)); }}
+      />
+    </label>
   );
 }

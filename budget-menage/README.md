@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 192 tests
+npm test                    # 204 tests
 ```
 
 ---
@@ -299,6 +299,33 @@ Mise en page **façon Finary**, pensée pour le téléphone d'abord.
 - **Un œil masque tous les montants** d'un geste. Le flou est posé par la feuille de style sur les
   classes qui portent des chiffres : aucun montant ne peut lui échapper par oubli.
 
+## Comptes et soldes
+
+*Plus → Comptes.* L'écran qui débloque les autres.
+
+L'export CSV d'UBS **ne porte aucun solde** : sans point de départ, le patrimoine ne peut rien
+déduire d'un compte suivi, et la prévision de trésorerie refuse — à raison — de projeter. Un seul
+chiffre relevé sur l'application de la banque, saisi ici avec sa date, ouvre les deux : mesuré sur
+l'export réel, un solde saisi fait passer la trésorerie de « indisponible » à une projection à
+trois mois.
+
+- **Le cumul des mouvements importés n'est pas un solde**, et l'écran ne les met jamais sur le même
+  plan : il ignore tout ce qui précède le premier relevé.
+- Un solde saisi est rangé comme un relevé sans mouvements — les écritures postérieures s'y
+  ajoutent, celles qui précèdent s'en retranchent. Deux saisies à la même date se remplacent :
+  c'est une correction, pas une seconde vérité.
+- **Le libellé se renomme, la clé jamais** : c'est elle qui rattache les écritures, les relevés et
+  les positions du patrimoine.
+- Un compte se crée aussi à la main — la caisse en espèces, une banque qui n'exporte rien. Sa clé
+  est préfixée `MANUEL-`, pour qu'on ne la confonde jamais avec celle d'un relevé.
+
+## Notes
+
+Une catégorie range, une **note** explique : « remboursé par Marie », « acompte, solde en mars ».
+Elle s'écrit en ouvrant une écriture, elle est **cherchable** — c'est souvent pour ça qu'on l'a
+écrite — et elle part dans les exports CSV et Excel. Une note vidée est retirée plutôt que rangée
+comme chaîne vide : les deux se ressemblent à la lecture et se comptent différemment.
+
 ## Organisation du code
 
 ```
@@ -311,13 +338,14 @@ budget-app/     la version locale du même projet, dans le même dépôt : serve
 src/lib/        montants, dates, lecture CSV et MT940, plan de comptes, journal, patrimoine,
                 écriture de classeurs Excel — sans dépendance à React
 src/store/      session Supabase, état du budget et sa synchronisation
-src/pages/      Connexion, Import, Budget, Écritures, Tiers, Révision, Patrimoine, Plus, Réglages
+src/pages/      Connexion, Import, Budget, Écritures, Tiers, Révision, Patrimoine, Comptes,
+                Plus, Réglages
 supabase/       schéma et règles d'accès, source de vérité versionnée
 ```
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 192 tests.
+et c'est là que vivent les 204 tests.
 
 ## Limites connues
 

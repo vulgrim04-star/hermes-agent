@@ -285,7 +285,8 @@ function downloadJson(data, notify) {
 
 function downloadCsv(data, notify) {
   const headers = ['Date de valeur', 'Compte', 'Libellé', 'Contrepartie', 'Catégorie',
-    'Sous-catégorie', 'Type', 'Montant', 'Devise', 'Catégorie banque', 'Transfert interne'];
+    'Sous-catégorie', 'Type', 'Montant', 'Devise', 'Note', 'Catégorie banque',
+    'Transfert interne'];
   const quote = (v) =>
     v == null ? '' : /[";\r\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   const kinds = { revenu: 'Revenu', depense: 'Dépense', epargne: 'Épargne' };
@@ -303,6 +304,7 @@ function downloadCsv(data, notify) {
       kinds[kindOf(tx.cat, tx.cents)] || '',
       (tx.cents / 100).toFixed(2),
       'CHF',
+      tx.note || '',
       tx.ext || '',
       tx.transfer ? 'oui' : 'non',
     ].map(quote).join(';'));
@@ -329,6 +331,7 @@ function exportRows(data) {
       xtext(kinds[kindOf(tx.cat, tx.cents)]),
       xmoney(tx.cents),
       xtext('CHF'),
+      xtext(tx.note),
       xtext(tx.ext),
       xtext(tx.transfer ? 'oui' : 'non'),
     ];
@@ -345,6 +348,7 @@ const EXPORT_COLUMNS = [
   { header: 'Type', width: 12 },
   { header: 'Montant', width: 14 },
   { header: 'Devise', width: 9 },
+  { header: 'Note', width: 34 },
   { header: 'Catégorie banque', width: 24 },
   { header: 'Transfert interne', width: 16 },
 ];

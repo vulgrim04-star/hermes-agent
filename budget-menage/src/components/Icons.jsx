@@ -82,6 +82,15 @@ export const IconPayees = (p) => (
   </Glyph>
 );
 
+/** Comptes — un portefeuille. */
+export const IconWallet = (p) => (
+  <Glyph {...p}>
+    <path d="M4 7.6A2.1 2.1 0 0 1 6.1 5.5h9.8a2.1 2.1 0 0 1 2.1 2.1v.9" />
+    <path d="M4 7.6v8.8A2.1 2.1 0 0 0 6.1 18.5h11.8a2.1 2.1 0 0 0 2.1-2.1v-5.8a1.2 1.2 0 0 0-1.2-1.2H5.2A1.2 1.2 0 0 1 4 8.2Z" />
+    <circle cx="16.4" cy="13.5" r="1.1" fill="currentColor" stroke="none" />
+  </Glyph>
+);
+
 /** Plus — l'écran de débordement : révision, import, réglages. */
 export const IconMore = (p) => (
   <Glyph {...p}>

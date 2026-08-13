@@ -35,6 +35,7 @@ import Tiers from './pages/Tiers.jsx';
 import Review from './pages/Review.jsx';
 import Settings from './pages/Settings.jsx';
 import More from './pages/More.jsx';
+import Accounts from './pages/Accounts.jsx';
 
 /*
  * Cinq onglets, pas six.
@@ -63,6 +64,7 @@ const TITLES = {
   '/tiers': 'Tiers',
   '/patrimoine': 'Patrimoine',
   '/import': 'Import',
+  '/comptes': 'Comptes',
   '/plus': 'Plus',
   '/reglages': 'Réglages',
   '/mot-de-passe': 'Mot de passe',
@@ -205,6 +207,7 @@ function Shell({ local = false }) {
             <Route path="/tiers" element={<Tiers />} />
             <Route path="/patrimoine" element={<NetWorth />} />
             <Route path="/import" element={<Import />} />
+            <Route path="/comptes" element={<Accounts />} />
             <Route path="/plus" element={<More local={local} demo={demo} email={email} />} />
             <Route path="/reglages" element={<Settings />} />
             <Route path="/mot-de-passe" element={<Password />} />

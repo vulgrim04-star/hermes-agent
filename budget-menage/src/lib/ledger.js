@@ -14,7 +14,7 @@
  */
 
 import { BANK_MAP_SEED, kindOf, rootOf } from './categories.js';
-import { dayGap, monthBounds } from './dates.js';
+import { dayGap, monthBounds, validIso } from './dates.js';
 import { bankBalanceAt } from './networth.js';
 import { normLabel } from './normalise.js';
 import { payeeKey } from './tiers.js';
@@ -101,6 +101,8 @@ export function commitStatements(state, statements) {
         cp: row.counterparty,
         ext: row.extCat,
         cat: null,
+        /** Annotation libre du ménage. Elle n'existe que si on l'écrit. */
+        note: null,
         transfer: 0,
       };
       state.tx.push(tx);
@@ -315,13 +317,24 @@ export function accountBalances(state, period) {
     const cumul = mouvements.reduce((somme, t) => somme + t.cents, 0);
     const solde = bounds ? bankBalanceAt(state, compte.key, mois) : null;
 
+    // Sur quel relevé le solde s'appuie : l'écran doit pouvoir dire si le
+    // chiffre vient d'un relevé importé ou d'une valeur saisie à la main.
+    const soldes = state.statements
+      .filter((s) => s.acc === compte.key && s.closing !== null && s.to)
+      .sort((a, b) => (a.to < b.to ? -1 : a.to > b.to ? 1 : 0));
+    const appui = bounds
+      ? [...soldes].reverse().find((s) => s.to <= bounds.end) || soldes.find((s) => s.to > bounds.end) || null
+      : null;
+
     return {
       key: compte.key,
       label: compte.label || compte.key,
       solde,
       origine: solde === null ? 'mouvements' : 'releve',
+      appui: appui ? { date: appui.to, saisi: Boolean(appui.saisi) } : null,
       cumul,
       ecritures: mouvements.length,
+      derniere: mouvements.reduce((max, t) => (t.date > max ? t.date : max), ''),
     };
   });
 
@@ -335,6 +348,94 @@ export function accountBalances(state, period) {
     inconnus: comptes.length - etablis.length,
     mois,
   };
+}
+
+/* ------------------------------------------------------------- annotation */
+
+/**
+ * Note libre sur une écriture.
+ *
+ * Une catégorie range, une note **explique** : « remboursé par Marie »,
+ * « acompte, solde en mars », « facture 2024 payée en retard ». C'est ce qui
+ * évite de rouvrir un relevé six mois plus tard pour se rappeler pourquoi une
+ * ligne sort de l'ordinaire.
+ *
+ * Une note vide est retirée plutôt que stockée comme chaîne vide : `null` et
+ * `''` se ressembleraient à la lecture et se compteraient différemment.
+ */
+export function setNote(state, id, texte) {
+  const tx = state.tx.find((t) => t.id === id);
+  if (!tx) return null;
+  const propre = String(texte ?? '').trim();
+  tx.note = propre || null;
+  return tx.note;
+}
+
+/* ---------------------------------------------------------------- comptes */
+
+/**
+ * Renomme un compte. La clé — l'IBAN, ou ce qui en tient lieu — ne bouge
+ * jamais : c'est elle qui rattache les écritures, les relevés et les positions
+ * du patrimoine. Seul le libellé affiché change.
+ */
+export function renameAccount(state, key, label) {
+  const compte = state.accounts[key];
+  if (!compte) return false;
+  const propre = String(label ?? '').trim();
+  compte.label = propre || key;
+  return true;
+}
+
+/**
+ * Crée un compte à la main — la caisse en espèces, un compte chez une banque
+ * qui n'exporte rien. Il n'a pas d'IBAN : la clé est fabriquée, et préfixée
+ * pour qu'on ne la confonde jamais avec celle d'un relevé importé.
+ */
+export function addAccount(state, label) {
+  const propre = String(label ?? '').trim();
+  if (!propre) return null;
+  let n = 1;
+  while (state.accounts[`MANUEL-${n}`]) n += 1;
+  const key = `MANUEL-${n}`;
+  state.accounts[key] = { key, label: propre };
+  return key;
+}
+
+/**
+ * Enregistre un solde de compte constaté à une date.
+ *
+ * C'est la pièce qui manquait à tout le reste : l'export CSV d'UBS ne porte
+ * aucun solde, et sans point de départ le patrimoine ne peut rien déduire, la
+ * trésorerie refuse de projeter. Un chiffre relevé sur l'application de la
+ * banque suffit à débloquer les deux.
+ *
+ * Il est rangé comme un relevé sans mouvements, ce que `bankBalanceAt` sait
+ * déjà exploiter — solde le plus proche, puis marche avant ou arrière le long
+ * des écritures. Deux saisies à la même date se remplacent : c'est une
+ * correction, pas une seconde vérité.
+ */
+export function setAccountBalance(state, key, date, cents) {
+  if (!state.accounts[key] || !validIso(date) || !Number.isFinite(cents)) return false;
+  const existant = state.statements.find((s) => s.acc === key && s.to === date && s.saisi);
+  if (existant) { existant.closing = Math.round(cents); return true; }
+  state.statements.push({
+    acc: key,
+    from: null,
+    to: date,
+    opening: null,
+    closing: Math.round(cents),
+    movements: null,
+    /** Marque la saisie manuelle : l'écran doit dire d'où vient un chiffre. */
+    saisi: true,
+  });
+  return true;
+}
+
+export function clearAccountBalance(state, key, date) {
+  const i = state.statements.findIndex((s) => s.acc === key && s.to === date && s.saisi);
+  if (i < 0) return false;
+  state.statements.splice(i, 1);
+  return true;
 }
 
 export function pendingCount(state) {
