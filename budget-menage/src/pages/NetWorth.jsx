@@ -1,8 +1,12 @@
 import { useState } from 'react';
 
+import Allocation from '../components/Allocation.jsx';
+import Evolution from '../components/Evolution.jsx';
+import Immobilier from '../components/Immobilier.jsx';
+import Projection from '../components/Projection.jsx';
 import { shiftMonth } from '../lib/dates.js';
 import { fmt, parseAmount } from '../lib/money.js';
-import { QUANTITY_SCALE, ASSET_KINDS, ORIGIN_LABELS, addAsset, netWorthSeries, pillar3aStatus,
+import { QUANTITY_SCALE, ASSET_KINDS, ORIGIN_LABELS, addAsset, pillar3aStatus,
   positionsAt, removeAsset, setValuation } from '../lib/networth.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
@@ -18,7 +22,6 @@ export default function NetWorth() {
   const [period, setPeriod] = useState(() => new Date().toISOString().slice(0, 7));
 
   const positions = positionsAt(data, period);
-  const series = netWorthSeries(data, shiftMonth(period, -23), period);
 
   const assets = positions.filter((p) => !p.isLiability).reduce((s, p) => s + (p.valueCents || 0), 0);
   const liabilities = positions
@@ -56,59 +59,15 @@ export default function NetWorth() {
         )}
       </div>
 
-      {series.filter((p) => p.net !== 0).length > 1 && (
-        <div className="block">
-          <header><div className="grow"><h3>Évolution du patrimoine net</h3></div></header>
-          <div className="body"><Sparkline points={series} /></div>
-        </div>
-      )}
-
+      <Evolution data={data} from={shiftMonth(period, -23)} to={period} />
+      <Allocation data={data} period={period} />
       <PositionsCard positions={positions} period={period} accounts={data.accounts} />
       <NewPosition accounts={data.accounts} />
+      <Projection data={data} departCents={assets - liabilities} />
+      <Immobilier data={data} />
       <Pillar3a data={data} year={Number(period.slice(0, 4))} />
       <YearEnd data={data} year={Number(period.slice(0, 4)) - 1} />
     </>
-  );
-}
-
-/** Courbe simple : une seule série, donc une seule teinte et pas de légende. */
-function Sparkline({ points }) {
-  const width = 720;
-  const height = 200;
-  const pad = { top: 14, right: 14, bottom: 26, left: 84 };
-  const values = points.map((p) => p.net);
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-  const span = max - min || 100;
-
-  const x = (i) => pad.left + (i / Math.max(1, points.length - 1)) * (width - pad.left - pad.right);
-  const y = (v) => pad.top + (1 - (v - min) / span) * (height - pad.top - pad.bottom);
-
-  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.net).toFixed(1)}`).join(' ');
-  const stride = Math.ceil(points.length / 8);
-
-  return (
-    <figure style={{ margin: 0 }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Évolution du patrimoine net">
-        {[min, (min + max) / 2, max].map((tick) => (
-          <g key={tick}>
-            <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)}
-              stroke="var(--rule)" strokeWidth="1" />
-            <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" fontSize="11" fill="var(--ink-3)">
-              {fmt(tick)}
-            </text>
-          </g>
-        ))}
-        {points.map((p, i) =>
-          i % stride === 0 || i === points.length - 1 ? (
-            <text key={p.period} x={x(i)} y={height - 7} textAnchor="middle" fontSize="10.5" fill="var(--ink-3)">
-              {p.period.slice(2).replace('-', '/')}
-            </text>
-          ) : null)}
-        <path d={path} fill="none" stroke="#2a78d6" strokeWidth="2" strokeLinejoin="round" />
-        {points.map((p, i) => <circle key={p.period} cx={x(i)} cy={y(p.net)} r="2.5" fill="#2a78d6" />)}
-      </svg>
-    </figure>
   );
 }
 

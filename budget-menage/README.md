@@ -209,6 +209,32 @@ dettes déduites.
 chaque année et **ne se devine pas** : tant qu'il n'est pas saisi, l'écran le dit et n'affiche
 aucun reste à verser. 2025 est pré-rempli à CHF 7'258.00.
 
+### Ce qui fait bouger le patrimoine
+
+Le montant seul ne se pilote pas. `src/lib/patrimoine.js` en donne la lecture :
+
+- **Décomposition de la variation** — `variation = épargne + valorisation`. L'épargne se mesure au
+  journal (revenus moins consommation, les mouvements d'épargne étant des déplacements et non des
+  dépenses) ; la valorisation est le **reste**, ce que les flux du ménage n'expliquent pas. C'est
+  la distinction qui dit si le ménage s'enrichit ou si le marché travaille pour lui. La série
+  **ne s'ouvre pas avant la première valorisation connue** : sans cela, une hypothèque saisie
+  aujourd'hui sortirait comme une perte de 400'000 sur une fenêtre de deux ans. Un mois portant
+  une position non renseignée est signalé — ce qui manque au patrimoine se retrouverait sinon en
+  valorisation.
+- **Allocation par classe d'actifs**, et l'écart à une cible **en francs** : « 4'200 de titres à
+  acheter » se décide, « 58 % au lieu de 65 % » se contemple. Les dettes sont tenues hors de
+  l'anneau. Des cibles qui ne totalisent pas 100 % restent justes classe par classe, et l'écran le
+  dit.
+- **Hypothèque : la charge théorique**, celle que la banque recalcule — intérêts au **taux de
+  calcul de 5 %** et non au taux payé, 1 % d'entretien, amortissement du 2e rang sur quinze ans —
+  à tenir sous un tiers du revenu brut. Avec la simulation d'un amortissement extraordinaire, et
+  l'arbitrage entre amortissement direct et 3a nanti. Aucun paramètre par défaut : taux marginal,
+  rendement et impôt de retrait dépendent de la commune et du barème, et orientent une décision à
+  cent mille francs.
+- **Taux d'épargne** constaté sur douze mois — le mois en cours écarté, faute de quoi un mois
+  arrêté au 7 porterait une semaine de dépenses et un salaire entier — et sa projection à 5 et
+  10 ans, qui sépare toujours ce qui a été versé de ce que le rendement a produit.
+
 ## Exports
 
 *Réglages → Export et sauvegarde* :

@@ -687,3 +687,19 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
 /* Un solde projeté négatif est une anomalie, pas une dépense : le rouge s'y
    applique, comme au reste à vivre négatif. */
 .stat dd.alert { color: var(--err); }
+
+/* ------------------------------------------------------- patrimoine
+   La variation d'un mois se lit en deux morceaux : ce que le ménage a mis de
+   côté, et ce que le marché a fait. Deux teintes sur une même échelle — un
+   mois à 200 francs ne doit pas paraître aussi fourni qu'un mois à 8'000. */
+.split {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  height: 6px;
+  margin-top: 7px;
+}
+.split i { display: block; height: 100%; border-radius: var(--r-pill); min-width: 2px; }
+.split i.ep { background: var(--accent); }
+.split i.val { background: #ff9500; }
+.split i.val.neg { background: var(--err); }

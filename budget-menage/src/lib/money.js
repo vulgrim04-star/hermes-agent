@@ -88,6 +88,24 @@ export function parseAmount(raw, forced) {
 }
 
 /**
+ * Un taux saisi en pour-cent, en points de base : `1.25` → 125.
+ *
+ * L'échelle est celle des centimes — un pour-cent à deux décimales et un franc
+ * à deux décimales se lisent avec le même analyseur, et un taux reste donc un
+ * entier, comme un montant.
+ */
+export function parseRate(raw) {
+  return parseAmount(raw);
+}
+
+/** `125` → `1.25 %`, `500` → `5 %` : les décimales inutiles n'apportent rien. */
+export function fmtRate(bp) {
+  if (!Number.isFinite(bp)) return '—';
+  const value = Math.round(bp) / 100;
+  return `${value.toFixed(2).replace(/\.?0+$/, '')} %`;
+}
+
+/**
  * Formatage suisse : apostrophe droite, point décimal, deux décimales.
  * `Intl.NumberFormat('de-CH')` produit l'apostrophe typographique U+2019, qui
  * n'est pas la forme attendue sur un relevé — d'où ce formatage à la main.
