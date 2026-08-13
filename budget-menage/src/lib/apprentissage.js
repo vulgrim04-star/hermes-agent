@@ -12,7 +12,7 @@
  * silencieuse.
  */
 
-import { ruleScope } from './ledger.js';
+import { hasSplits, ruleScope } from './ledger.js';
 import { payeeKey } from './tiers.js';
 
 /**
@@ -53,7 +53,7 @@ export function accepterRegle(state, proposition, applyRules) {
   if (!existe) {
     state.rules.push({ kind: proposition.kind, pattern: proposition.pattern, cat: proposition.cat });
   }
-  return applyRules(state, state.tx.filter((t) => !t.cat && !t.transfer));
+  return applyRules(state, state.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t)));
 }
 
 /**
@@ -65,7 +65,7 @@ export function accepterRegle(state, proposition, applyRules) {
  * combien vont bouger.
  */
 export function rejouerRegles(state, applyRules, { simuler = false } = {}) {
-  const candidates = state.tx.filter((t) => !t.cat && !t.transfer);
+  const candidates = state.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t));
   if (!simuler) return applyRules(state, candidates);
 
   // Simulation : on compte sur une copie, l'état réel n'est pas touché.

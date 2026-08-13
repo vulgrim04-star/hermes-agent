@@ -285,14 +285,14 @@ function downloadJson(data, notify) {
 
 function downloadCsv(data, notify) {
   const headers = ['Date de valeur', 'Compte', 'Libellé', 'Contrepartie', 'Catégorie',
-    'Sous-catégorie', 'Type', 'Montant', 'Devise', 'Note', 'Catégorie banque',
+    'Sous-catégorie', 'Type', 'Montant', 'Devise', 'Note', 'Part', 'Catégorie banque',
     'Transfert interne'];
   const quote = (v) =>
     v == null ? '' : /[";\r\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   const kinds = { revenu: 'Revenu', depense: 'Dépense', epargne: 'Épargne' };
 
   const lines = [headers.join(';')];
-  for (const tx of data.tx) {
+  for (const tx of exportLines(data)) {
     const leaf = catOf(tx.cat);
     lines.push([
       frDate(tx.date),
@@ -305,6 +305,7 @@ function downloadCsv(data, notify) {
       (tx.cents / 100).toFixed(2),
       'CHF',
       tx.note || '',
+      tx.part || '',
       tx.ext || '',
       tx.transfer ? 'oui' : 'non',
     ].map(quote).join(';'));
@@ -316,10 +317,33 @@ function downloadCsv(data, notify) {
   notify('Export téléchargé.');
 }
 
+/**
+ * Les lignes à exporter : **une par part** quand une écriture est répartie.
+ *
+ * Exporter l'écriture entière perdrait la répartition, et la colonne catégorie
+ * sortirait vide sur les lignes les plus travaillées du journal. La colonne
+ * « Part » dit d'où vient la ligne — « 1/2 » — pour qu'un total par catégorie
+ * fait dans Excel tombe juste sans qu'on se demande d'où sortent deux lignes
+ * de même date et de même libellé.
+ */
+function exportLines(data) {
+  const lignes = [];
+  for (const tx of data.tx) {
+    if (tx.splits && tx.splits.length) {
+      tx.splits.forEach((p, i) => {
+        lignes.push({ ...tx, cat: p.cat, cents: p.cents, part: `${i + 1}/${tx.splits.length}` });
+      });
+    } else {
+      lignes.push({ ...tx, part: '' });
+    }
+  }
+  return lignes;
+}
+
 /** Colonnes communes aux deux exports d'écritures. */
 function exportRows(data) {
   const kinds = { revenu: 'Revenu', depense: 'Dépense', epargne: 'Épargne' };
-  return data.tx.map((tx) => {
+  return exportLines(data).map((tx) => {
     const leaf = catOf(tx.cat);
     return [
       xdate(tx.date),
@@ -332,6 +356,7 @@ function exportRows(data) {
       xmoney(tx.cents),
       xtext('CHF'),
       xtext(tx.note),
+      xtext(tx.part),
       xtext(tx.ext),
       xtext(tx.transfer ? 'oui' : 'non'),
     ];
@@ -349,6 +374,7 @@ const EXPORT_COLUMNS = [
   { header: 'Montant', width: 14 },
   { header: 'Devise', width: 9 },
   { header: 'Note', width: 34 },
+  { header: 'Part', width: 8 },
   { header: 'Catégorie banque', width: 24 },
   { header: 'Transfert interne', width: 16 },
 ];

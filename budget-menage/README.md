@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 204 tests
+npm test                    # 211 tests
 ```
 
 ---
@@ -319,6 +319,32 @@ trois mois.
 - Un compte se crée aussi à la main — la caisse en espèces, une banque qui n'exporte rien. Sa clé
   est préfixée `MANUEL-`, pour qu'on ne la confonde jamais avec celle d'un relevé.
 
+## Découpage d'écriture
+
+Un passage à la Migros à 148.50 dont 30.00 sont un article de ménage n'est pas une dépense
+d'alimentation de 148.50. Une écriture se **répartit** entre plusieurs catégories, et le journal
+rend alors **une ligne par part** — les totaux, les postes, le camembert et les budgets suivent
+sans qu'aucun d'eux ait été modifié.
+
+La règle est absolue : **la somme des parts vaut l'écriture, au centime**. Le reste à répartir est
+affiché en permanence et l'enregistrement reste fermé tant qu'il n'est pas nul, parce qu'une
+répartition qui ne boucle pas ferait apparaître ou disparaître de l'argent dans tous les totaux
+sans qu'aucun écran puisse le signaler. Un bouton « reste » prend le solde, pour éviter la
+soustraction de tête — l'endroit exact où l'on se trompe.
+
+Une écriture répartie n'a plus de catégorie propre : ce sont ses parts qui la portent. Elle sort
+donc de la file de révision, et ni les règles ni la correspondance de la banque ne viennent
+reposer une catégorie par-dessus. Les exports sortent une ligne par part, avec une colonne
+« Part » (`1/2`) pour qu'un total fait dans Excel tombe juste.
+
+## Filtres du journal
+
+*Écritures* cumule une recherche texte — libellé, catégorie, **note** — et quatre filtres :
+compte, mois, sens, état (sans catégorie, réparties, annotées, transferts internes). Le compte de
+lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un filtre a mordu.
+Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
+dépouillement : trois listes déroulantes, quinze lignes.
+
 ## Notes
 
 Une catégorie range, une **note** explique : « remboursé par Marie », « acompte, solde en mars ».
@@ -345,14 +371,12 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 204 tests.
+et c'est là que vivent les 211 tests.
 
 ## Limites connues
 
 - **Les cours ne sont pas récupérés automatiquement**, et ne le seront pas : le cours d'un ETF
   ou du Bitcoin se saisit, une fois par mois, à côté de la quantité.
-- **Pas de découpage d'écriture** ici : une écriture porte une seule catégorie. La version
-  locale permet de la ventiler entre plusieurs.
 - **Pas de conversion de devise** : une écriture en EUR est conservée telle quelle et n'entre
   pas dans les totaux CHF.
 - **Un montant à trois décimales sans indication** (`1.005`) est lu comme un groupe de milliers,

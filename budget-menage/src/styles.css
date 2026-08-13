@@ -617,6 +617,10 @@ input, select, textarea {
   min-height: 44px;
 }
 input:focus, select:focus { border-color: var(--accent); outline: none; }
+/* Un `select` ne descend pas sous la largeur de sa plus longue option sans
+   qu'on le lui dise. « Shopping › Équipement du ménage » suffisait à pousser
+   la page hors de l'écran, et tout le contenu se retrouvait décalé. */
+select { max-width: 100%; min-width: 0; }
 input.num-in { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
 label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; color: var(--ink-2); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
@@ -849,3 +853,9 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
 .menu .grow { flex: 1; min-width: 0; }
 .menu .grow small { display: block; font-size: 13px; color: var(--ink-2); }
 .menu .chev { width: 20px; height: 20px; color: var(--ink-4); flex: none; }
+
+/* Les filtres du journal : quatre listes qui doivent tenir sur deux lignes de
+   téléphone sans déborder, donc chacune libre de rétrécir. */
+.filtres { gap: 8px; }
+.filtres select { flex: 1 1 44%; min-width: 0; font-size: 15px; padding: 9px 10px; min-height: 40px; }
+@media (min-width: 700px) { .filtres select { flex: 0 1 auto; } }

@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  accountBalances, addAccount, clearAccountBalance, emptyState, renameAccount,
-  setAccountBalance, setNote,
+  accountBalances, addAccount, applyRules, clearAccountBalance, emptyState, hasSplits, ledger,
+  pendingCount, renameAccount, rowKey, setAccountBalance, setNote, setSplits, totalsOf,
 } from './ledger.js';
 import { bankBalanceAt } from './networth.js';
 
@@ -122,5 +122,89 @@ describe('solde saisi', () => {
     expect(clearAccountBalance(state, 'CH00', '2026-03-31')).toBe(false);
     expect(state.statements).toHaveLength(1);
     expect(accountBalances(state, '2026-03').comptes[0].appui.saisi).toBe(false);
+  });
+});
+
+describe('découpage d’une écriture', () => {
+  function migros() {
+    const state = emptyState();
+    state.accounts.CH00 = { key: 'CH00', label: 'Compte' };
+    state.tx.push({ id: 1, acc: 'CH00', date: '2026-03-05', cents: -14_850,
+      label: 'Migros', norm: 'MIGROS', cat: 'Courses', note: null, transfer: 0 });
+    return state;
+  }
+
+  it('rend une ligne de journal par part, avec sa catégorie et son montant', () => {
+    const state = migros();
+    expect(setSplits(state, 1, [
+      { cat: 'Courses', cents: -11_850 },
+      { cat: 'Équipement du ménage', cents: -3_000 },
+    ])).toEqual({ kind: 'reparti', parts: 2 });
+
+    const rows = ledger(state, '2026-03-01', '2026-03-31');
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.cat)).toEqual(['Courses', 'Équipement du ménage']);
+    expect(rows.map((r) => r.cents)).toEqual([-11_850, -3_000]);
+    // Les clés restent distinctes : deux lignes issues d'une même écriture ne
+    // doivent pas se confondre dans une liste.
+    expect(new Set(rows.map(rowKey)).size).toBe(2);
+    // Et le total du mois ne bouge pas d'un centime.
+    expect(totalsOf(rows).expense).toBe(14_850);
+  });
+
+  it('refuse une répartition qui ne boucle pas, et dit de combien', () => {
+    const state = migros();
+    const r = setSplits(state, 1, [{ cat: 'Courses', cents: -10_000 }]);
+    expect(r).toEqual({ kind: 'somme', ecart: -4_850 });
+    // Rien n'est enregistré : une écriture à moitié répartie ferait disparaître
+    // de l'argent des totaux sans qu'aucun écran ne puisse le signaler.
+    expect(state.tx[0].splits).toBeUndefined();
+  });
+
+  it('refuse une part de sens contraire et une part nulle', () => {
+    const state = migros();
+    expect(setSplits(state, 1, [
+      { cat: 'Courses', cents: -17_850 }, { cat: 'Remboursements', cents: 3_000 },
+    ]).kind).toBe('sens');
+    expect(setSplits(state, 1, [
+      { cat: 'Courses', cents: -14_850 }, { cat: 'Divers', cents: 0 },
+    ]).kind).toBe('part-nulle');
+  });
+
+  it('retire la catégorie de l’écriture entière : ce sont les parts qui la portent', () => {
+    const state = migros();
+    setSplits(state, 1, [
+      { cat: 'Courses', cents: -11_850 }, { cat: 'Électronique', cents: -3_000 },
+    ]);
+    expect(state.tx[0].cat).toBeNull();
+    expect(hasSplits(state.tx[0])).toBe(true);
+    // Une règle ne doit pas reposer une catégorie par-dessus la répartition.
+    state.rules.push({ pattern: 'MIGROS', cat: 'Courses' });
+    applyRules(state, state.tx);
+    expect(state.tx[0].cat).toBeNull();
+  });
+
+  it('sort de la file de révision une fois répartie', () => {
+    const state = migros();
+    state.tx[0].cat = null;
+    expect(pendingCount(state).toClassify).toBe(1);
+    setSplits(state, 1, [
+      { cat: 'Courses', cents: -11_850 }, { cat: 'Électronique', cents: -3_000 },
+    ]);
+    expect(pendingCount(state).toClassify).toBe(0);
+  });
+
+  it('se défait, et l’écriture retrouve son unité', () => {
+    const state = migros();
+    setSplits(state, 1, [
+      { cat: 'Courses', cents: -11_850 }, { cat: 'Électronique', cents: -3_000 },
+    ]);
+    expect(setSplits(state, 1, [])).toEqual({ kind: 'retire' });
+    expect(hasSplits(state.tx[0])).toBe(false);
+    expect(ledger(state, '2026-03-01', '2026-03-31')).toHaveLength(1);
+  });
+
+  it('ne lève pas sur une écriture absente', () => {
+    expect(setSplits(migros(), 42, [{ cat: 'Courses', cents: -1 }]).kind).toBe('introuvable');
   });
 });

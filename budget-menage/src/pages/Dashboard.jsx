@@ -10,7 +10,7 @@ import Segments from '../components/Segments.jsx';
 import { MONTHS_SHORT, frDate, monthBounds, monthLabel, shiftMonth } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
 import { kindOf, rootOf } from '../lib/categories.js';
-import { expenseByRoot, ledger, monthsAvailable, totalsOf, yearsAvailable } from '../lib/ledger.js';
+import { expenseByRoot, ledger, monthsAvailable, rowKey, totalsOf, yearsAvailable } from '../lib/ledger.js';
 import { fixedVsDiscretionary } from '../lib/recurrences.js';
 import { useBudget } from '../store/useBudget.js';
 
@@ -219,7 +219,7 @@ function MonthDetail({ data, period }) {
         <div className="body flush">
           <ul className="rows">
             {top.length ? top.map((row) => (
-              <li key={row.id}>
+              <li key={rowKey(row)}>
                 <Avatar nom={row.cp || row.label} />
                 <div className="lead">
                   <b>{row.label}</b>

@@ -145,7 +145,7 @@ export function ruleMatches(rule, tx) {
 export function applyRules(state, list) {
   let n = 0;
   for (const tx of list) {
-    if (tx.cat) continue;
+    if (tx.cat || hasSplits(tx)) continue;
     for (const rule of state.rules) {
       if (ruleMatches(rule, tx)) { tx.cat = rule.cat; n += 1; break; }
     }
@@ -156,7 +156,7 @@ export function applyRules(state, list) {
 export function applyBank(state, list) {
   let n = 0;
   for (const tx of list) {
-    if (tx.cat || !tx.ext) continue;
+    if (tx.cat || !tx.ext || hasSplits(tx)) continue;
     const mapping = state.bank[normLabel(tx.ext)];
     if (!mapping || !mapping.cat) continue;
     // Un règlement de carte n'est pas une catégorie de dépense : il reste sans
@@ -245,8 +245,36 @@ export function decideTransfer(state, pairId, status) {
 /* ------------------------------------------------------------- agrégats */
 
 /** Un transfert confirmé sort des totaux sans disparaître du journal. */
+/**
+ * Le journal, ligne à ligne — et une écriture répartie en donne plusieurs.
+ *
+ * Un passage à la Migros à 148.50 dont 30.00 sont un article de ménage n'est
+ * pas une dépense d'alimentation de 148.50. Le découpage rend donc **une ligne
+ * par part**, avec sa propre catégorie et son propre montant, et tout ce qui
+ * consomme le journal — totaux, postes, budgets, camembert — s'en trouve juste
+ * sans rien changer d'autre.
+ *
+ * Les lignes issues d'un découpage portent `splitOf` et `splitIndex` : elles ne
+ * sont pas des écritures, et rien ne doit les enregistrer comme telles.
+ */
 export function ledger(state, from, to) {
-  return state.tx.filter((t) => !t.transfer && t.date >= from && t.date <= to);
+  const rows = [];
+  for (const tx of state.tx) {
+    if (tx.transfer || tx.date < from || tx.date > to) continue;
+    if (tx.splits && tx.splits.length) {
+      tx.splits.forEach((part, i) => {
+        rows.push({ ...tx, cat: part.cat, cents: part.cents, splitOf: tx.id, splitIndex: i });
+      });
+    } else {
+      rows.push(tx);
+    }
+  }
+  return rows;
+}
+
+/** Clé stable d'une ligne de journal, découpage compris. */
+export function rowKey(row) {
+  return row.splitOf === undefined ? String(row.id) : `${row.splitOf}-${row.splitIndex}`;
 }
 
 export function totalsOf(rows) {
@@ -350,6 +378,50 @@ export function accountBalances(state, period) {
   };
 }
 
+/* -------------------------------------------------------------- découpage */
+
+/** Une écriture répartie ne porte plus de catégorie propre : ses parts la portent. */
+export function hasSplits(tx) {
+  return Boolean(tx.splits && tx.splits.length);
+}
+
+/**
+ * Répartit une écriture entre plusieurs catégories.
+ *
+ * La règle est absolue : **la somme des parts vaut l'écriture, au centime**.
+ * Une répartition qui ne boucle pas ferait apparaître ou disparaître de
+ * l'argent dans tous les totaux, sans qu'aucun écran ne puisse le signaler —
+ * c'est exactement le genre d'erreur qu'une comptabilité ne rattrape jamais.
+ *
+ * Les parts gardent le sens de l'écriture : on ne répartit pas une dépense de
+ * 148.50 en −178.50 et +30.00. Une part nulle est refusée, elle n'ajouterait
+ * qu'une ligne vide dans le journal.
+ *
+ * Une liste vide retire le découpage et rend son unité à l'écriture.
+ */
+export function setSplits(state, id, parts) {
+  const tx = state.tx.find((t) => t.id === id);
+  if (!tx) return { kind: 'introuvable' };
+
+  if (!parts || !parts.length) {
+    delete tx.splits;
+    return { kind: 'retire' };
+  }
+
+  const propres = parts.map((p) => ({ cat: p.cat || null, cents: Math.round(p.cents) }));
+  if (propres.some((p) => !p.cents)) return { kind: 'part-nulle' };
+  if (propres.some((p) => Math.sign(p.cents) !== Math.sign(tx.cents))) return { kind: 'sens' };
+
+  const somme = propres.reduce((s, p) => s + p.cents, 0);
+  if (somme !== tx.cents) return { kind: 'somme', ecart: tx.cents - somme };
+
+  tx.splits = propres;
+  // La catégorie de l'écriture entière n'a plus de sens : ce sont les parts qui
+  // la portent, et deux vérités concurrentes finiraient par diverger.
+  tx.cat = null;
+  return { kind: 'reparti', parts: propres.length };
+}
+
 /* ------------------------------------------------------------- annotation */
 
 /**
@@ -439,7 +511,7 @@ export function clearAccountBalance(state, key, date) {
 }
 
 export function pendingCount(state) {
-  const toClassify = state.tx.filter((t) => !t.cat && !t.transfer).length;
+  const toClassify = state.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t)).length;
   const toPair = state.transfers.filter((p) => p.status === 'propose').length;
   return { toClassify, toPair, total: toClassify + toPair };
 }

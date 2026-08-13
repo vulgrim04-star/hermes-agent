@@ -5,7 +5,7 @@ import CategorySelect from '../components/CategorySelect.jsx';
 import { catOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
-import { applyRules, decideTransfer, ruleScope, suggestPattern } from '../lib/ledger.js';
+import { applyRules, decideTransfer, hasSplits, ruleScope, suggestPattern } from '../lib/ledger.js';
 import { accepterRegle, proposerRegle } from '../lib/apprentissage.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
@@ -20,7 +20,8 @@ export default function Review() {
   const [proposition, setProposition] = useState(null);
 
   const pairs = data.transfers.filter((p) => p.status === 'propose');
-  const queue = data.tx.filter((t) => !t.cat && !t.transfer);
+  // Une écriture répartie est classée : ses parts portent les catégories.
+  const queue = data.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t));
   const byId = new Map(data.tx.map((t) => [t.id, t]));
 
   return (
@@ -131,7 +132,7 @@ export default function Review() {
                   </div>
                   <span className={tx.cents < 0 ? 'amount' : 'amount pos'}>{fmt(tx.cents)}</span>
                   <div className="row" style={{ flex: '1 1 100%', alignItems: 'center' }}>
-                    <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                       <CategorySelect
                         value={tx.cat}
                         onChange={(c) => {
@@ -217,7 +218,7 @@ function RuleDialog({ tx, onClose }) {
     if (!pattern.trim() || !catOf(category)) return;
     edit((state) => {
       state.rules.push({ pattern: pattern.trim(), cat: category });
-      applyRules(state, state.tx.filter((t) => !t.cat));
+      applyRules(state, state.tx.filter((t) => !t.cat && !hasSplits(t)));
     });
     onClose();
   }
