@@ -510,6 +510,73 @@ export function clearAccountBalance(state, key, date) {
   return true;
 }
 
+/**
+ * Contrôle de cohérence des soldes — le rapprochement d'un relevé à l'autre.
+ *
+ * L'import prouve déjà qu'**à l'intérieur** d'un relevé, ouverture + mouvements
+ * = clôture. Ce qu'il ne peut pas voir, c'est ce qui se passe **entre** deux
+ * relevés : un mois jamais importé, un export tronqué, un fichier oublié. Le
+ * journal paraît alors complet, les totaux sont plausibles, et il manque
+ * pourtant des écritures.
+ *
+ * Le contrôle est arithmétique et sans échappatoire : entre deux soldes connus,
+ * la différence doit valoir la somme des mouvements de l'intervalle. Sinon,
+ * l'écart chiffre exactement ce qui manque — c'est la question qu'un comptable
+ * pose en premier, et à laquelle l'application ne savait pas répondre.
+ *
+ * Deux soldes au moins sont nécessaires par compte : un seul solde ne se
+ * contrôle contre rien.
+ */
+export function controleSoldes(state) {
+  const comptes = [];
+
+  for (const compte of Object.values(state.accounts)) {
+    const appuis = state.statements
+      .filter((s) => s.acc === compte.key && s.closing !== null && s.to)
+      .sort((a, b) => (a.to < b.to ? -1 : a.to > b.to ? 1 : 0));
+    if (appuis.length < 2) continue;
+
+    const controles = [];
+    for (let i = 1; i < appuis.length; i += 1) {
+      const debut = appuis[i - 1];
+      const fin = appuis[i];
+      // L'intervalle exclut le jour du premier solde — il est déjà dedans — et
+      // inclut celui du second.
+      const mouvements = state.tx
+        .filter((t) => t.acc === compte.key && t.date > debut.to && t.date <= fin.to)
+        .reduce((somme, t) => somme + t.cents, 0);
+      const attendu = fin.closing - debut.closing;
+
+      controles.push({
+        de: debut.to,
+        a: fin.to,
+        attenduCents: attendu,
+        observeCents: mouvements,
+        ecartCents: attendu - mouvements,
+        ecritures: state.tx.filter((t) => t.acc === compte.key && t.date > debut.to && t.date <= fin.to).length,
+        saisi: Boolean(debut.saisi || fin.saisi),
+      });
+    }
+
+    const ecarts = controles.filter((c) => c.ecartCents !== 0);
+    comptes.push({
+      key: compte.key,
+      label: compte.label || compte.key,
+      controles,
+      ecarts: ecarts.length,
+      ecartTotalCents: ecarts.reduce((s, c) => s + c.ecartCents, 0),
+    });
+  }
+
+  return {
+    comptes,
+    controlables: comptes.length,
+    // Le seul chiffre qui compte vraiment : combien d'intervalles ne bouclent
+    // pas, tous comptes confondus.
+    ecarts: comptes.reduce((s, c) => s + c.ecarts, 0),
+  };
+}
+
 export function pendingCount(state) {
   const toClassify = state.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t)).length;
   const toPair = state.transfers.filter((p) => p.status === 'propose').length;

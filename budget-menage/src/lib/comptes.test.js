@@ -10,8 +10,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  accountBalances, addAccount, applyRules, clearAccountBalance, emptyState, hasSplits, ledger,
-  pendingCount, renameAccount, rowKey, setAccountBalance, setNote, setSplits, totalsOf,
+  accountBalances, addAccount, applyRules, clearAccountBalance, controleSoldes, emptyState,
+  hasSplits, ledger, pendingCount, renameAccount, rowKey, setAccountBalance, setNote, setSplits,
+  totalsOf,
 } from './ledger.js';
 import { bankBalanceAt } from './networth.js';
 
@@ -206,5 +207,79 @@ describe('découpage d’une écriture', () => {
 
   it('ne lève pas sur une écriture absente', () => {
     expect(setSplits(migros(), 42, [{ cat: 'Courses', cents: -1 }]).kind).toBe('introuvable');
+  });
+});
+
+describe('contrôle de cohérence des soldes', () => {
+  /** Un compte, deux soldes connus, et les mouvements entre les deux. */
+  function suivi({ manquant = 0 } = {}) {
+    const state = emptyState();
+    state.accounts.CH00 = { key: 'CH00', label: 'Compte' };
+    setAccountBalance(state, 'CH00', '2026-03-31', 1_000_000);
+    setAccountBalance(state, 'CH00', '2026-04-30', 1_200_000);
+    // Avril : +3'000 de salaire, −1'000 de loyer = +2'000 attendus.
+    state.tx.push(
+      { id: 1, acc: 'CH00', date: '2026-04-05', cents: 300_000, label: 'Salaire', norm: 'SALAIRE', cat: null, note: null, transfer: 0 },
+      { id: 2, acc: 'CH00', date: '2026-04-20', cents: -100_000 + manquant, label: 'Loyer', norm: 'LOYER', cat: null, note: null, transfer: 0 },
+    );
+    return state;
+  }
+
+  it('boucle quand rien ne manque', () => {
+    const r = controleSoldes(suivi());
+    expect(r.controlables).toBe(1);
+    expect(r.ecarts).toBe(0);
+    const [c] = r.comptes[0].controles;
+    expect(c.attenduCents).toBe(200_000);
+    expect(c.observeCents).toBe(200_000);
+    expect(c.ecritures).toBe(2);
+  });
+
+  it('chiffre exactement ce qui manque entre deux soldes', () => {
+    // Une écriture de 450.00 jamais importée : le journal paraît complet, les
+    // totaux sont plausibles, et pourtant il manque quelque chose.
+    const r = controleSoldes(suivi({ manquant: 45_000 }));
+    expect(r.ecarts).toBe(1);
+    expect(r.comptes[0].ecartTotalCents).toBe(-45_000);
+    expect(r.comptes[0].controles[0].ecartCents).toBe(-45_000);
+  });
+
+  it('n’inclut pas le jour du premier solde, déjà compris dedans', () => {
+    const state = suivi();
+    // Une écriture datée du jour même du solde d'appui ne doit pas être
+    // recomptée : elle est déjà dans le solde du 31 mars.
+    state.tx.push({ id: 3, acc: 'CH00', date: '2026-03-31', cents: -50_000,
+      label: 'Fin mars', norm: 'FIN MARS', cat: null, note: null, transfer: 0 });
+    expect(controleSoldes(state).ecarts).toBe(0);
+  });
+
+  it('ne contrôle pas un compte qui n’a qu’un seul solde', () => {
+    const state = emptyState();
+    state.accounts.CH00 = { key: 'CH00', label: 'Compte' };
+    setAccountBalance(state, 'CH00', '2026-03-31', 1_000_000);
+    const r = controleSoldes(state);
+    expect(r.controlables).toBe(0);
+    expect(r.ecarts).toBe(0);
+  });
+
+  it('dit si l’intervalle s’appuie sur un solde saisi à la main', () => {
+    const state = suivi();
+    expect(controleSoldes(state).comptes[0].controles[0].saisi).toBe(true);
+
+    const importe = emptyState();
+    importe.accounts.CH00 = { key: 'CH00', label: 'Compte' };
+    importe.statements.push(
+      { acc: 'CH00', from: '2026-03-01', to: '2026-03-31', opening: 0, closing: 0, movements: 0 },
+      { acc: 'CH00', from: '2026-04-01', to: '2026-04-30', opening: 0, closing: 0, movements: 0 },
+    );
+    expect(controleSoldes(importe).comptes[0].controles[0].saisi).toBe(false);
+  });
+
+  it('ne compte pas les mouvements d’un autre compte', () => {
+    const state = suivi();
+    state.accounts.AUTRE = { key: 'AUTRE', label: 'Autre' };
+    state.tx.push({ id: 4, acc: 'AUTRE', date: '2026-04-10', cents: -999_999,
+      label: 'Ailleurs', norm: 'AILLEURS', cat: null, note: null, transfer: 0 });
+    expect(controleSoldes(state).ecarts).toBe(0);
   });
 });
