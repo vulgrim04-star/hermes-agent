@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { budgetFor, budgetStatus, progressionDuMois, setBudget } from './budgets.js';
+import { budgetFor, budgetStatus, progressionDuMois, proposerBudgets, setBudget } from './budgets.js';
 import { forecast } from './forecast.js';
 import { commitStatements, emptyState, normLabel } from './ledger.js';
 
@@ -211,5 +211,92 @@ describe('forecast', () => {
     expect(f.serie[0].solde).toBe(1_000_000);
     expect(f.serie[f.serie.length - 1].solde).toBe(f.arrivee);
     expect(f.echeances.every((e) => e.date <= f.fin)).toBe(true);
+  });
+});
+
+describe('budgets proposés', () => {
+  function journal(state, period, lignes) {
+    lignes.forEach(([cat, cents], i) => {
+      state.tx.push({
+        id: Number(period.replace('-', '')) * 100 + i,
+        acc: 'CH00', date: `${period}-12`, cents: -cents, label: cat,
+        norm: cat.toUpperCase(), cat, note: null, transfer: 0,
+      });
+    });
+  }
+
+  /** Six mois : le loyer tous les mois, les courses variables, un dentiste. */
+  function menage() {
+    const state = emptyState();
+    const courses = [62_000, 58_000, 71_000, 59_000, 60_500, 88_000];
+    ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'].forEach((p, i) => {
+      journal(state, p, [['Loyer', 180_000], ['Courses', courses[i]]]);
+    });
+    journal(state, '2026-03', [['Dentiste', 42_000]]);
+    return state;
+  }
+
+  it('propose la médiane pour une catégorie régulière, pas la moyenne', () => {
+    const p = proposerBudgets(menage(), { mois: 6, fin: '2026-06-30' });
+    const courses = p.find((l) => l.cat === 'Courses');
+    // Médiane de 58/59/60,5/62/71/88 = 61,25 ; la moyenne, elle, serait tirée
+    // vers le haut par le mois à 880.
+    expect(courses.medianeCents).toBe(61_250);
+    expect(courses.proposeCents).toBe(61_250);
+    expect(courses.regulier).toBe(true);
+    expect(courses.maxCents).toBe(88_000);
+  });
+
+  it('lisse une catégorie irrégulière au lieu de proposer un mois type', () => {
+    const p = proposerBudgets(menage(), { mois: 6, fin: '2026-06-30' });
+    const dentiste = p.find((l) => l.cat === 'Dentiste');
+    expect(dentiste.regulier).toBe(false);
+    expect(dentiste.moisObserves).toBe(1);
+    // 420 une fois en six mois : 70 par mois, pas 420.
+    expect(dentiste.proposeCents).toBe(7_000);
+  });
+
+  it('classe la plus grosse enveloppe en tête et rappelle le budget en place', () => {
+    const state = menage();
+    setBudget(state, 'Loyer', null, 180_000);
+    const p = proposerBudgets(state, { mois: 6, fin: '2026-06-30' });
+    expect(p[0].cat).toBe('Loyer');
+    expect(p[0].proposeCents).toBe(180_000);
+    expect(p[0].actuelCents).toBe(180_000);
+    expect(p.find((l) => l.cat === 'Courses').actuelCents).toBeNull();
+  });
+
+  it('écarte le mois en cours, qui ferait proposer des enveloppes trop petites', () => {
+    const state = menage();
+    // Juillet s'arrête au 3 : une seule semaine de courses.
+    journal(state, '2026-07', [['Courses', 12_000]]);
+    state.tx[state.tx.length - 1].date = '2026-07-03';
+    const p = proposerBudgets(state, { mois: 6 });
+    expect(p.find((l) => l.cat === 'Courses').proposeCents).toBe(61_250);
+  });
+
+  it('ne dilue pas les moyennes avec des mois jamais importés', () => {
+    const state = emptyState();
+    journal(state, '2026-05', [['Courses', 60_000]]);
+    journal(state, '2026-06', [['Courses', 60_000]]);
+    // Douze mois demandés, deux mois de journal : la période retenue est deux.
+    const p = proposerBudgets(state, { mois: 12, fin: '2026-06-30' });
+    expect(p[0].moisPeriode).toBe(2);
+    expect(p[0].proposeCents).toBe(60_000);
+  });
+
+  it('ne propose rien sur un journal vide', () => {
+    expect(proposerBudgets(emptyState())).toEqual([]);
+  });
+
+  it('ignore les revenus et l’épargne : une enveloppe est une dépense', () => {
+    const state = menage();
+    state.tx.push({ id: 9001, acc: 'CH00', date: '2026-05-25', cents: 800_000,
+      label: 'Salaire', norm: 'SALAIRE', cat: 'Salaire', note: null, transfer: 0 });
+    state.tx.push({ id: 9002, acc: 'CH00', date: '2026-05-26', cents: -100_000,
+      label: '3a', norm: '3A', cat: 'Pilier 3a', note: null, transfer: 0 });
+    const cats = proposerBudgets(state, { mois: 6, fin: '2026-06-30' }).map((l) => l.cat);
+    expect(cats).not.toContain('Salaire');
+    expect(cats).not.toContain('Pilier 3a');
   });
 });

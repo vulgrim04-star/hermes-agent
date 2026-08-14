@@ -13,7 +13,7 @@
  * journal. Le sens vient de la catégorie, pas d'un signe à retenir.
  */
 
-import { monthBounds } from './dates.js';
+import { monthBounds, shiftMonth } from './dates.js';
 import { kindOf } from './categories.js';
 import { ledger } from './ledger.js';
 
@@ -49,6 +49,97 @@ export function setBudget(state, cat, period, cents) {
 
   if (!Object.keys(ligne).length) delete state.budgets[cat];
   return budgetFor(state, cat, period);
+}
+
+/**
+ * Budgets proposés d'après l'historique.
+ *
+ * Poser vingt enveloppes à la main demande vingt chiffres qu'on n'a pas en
+ * tête, et c'est la raison pour laquelle un budget reste vide. Le journal, lui,
+ * les connaît : il suffit de les lire.
+ *
+ * Deux traitements, parce que deux natures de dépense :
+ *
+ *  - une catégorie **régulière** — présente au moins un mois sur deux — est
+ *    proposée à la **médiane** de ses mois. La médiane, pas la moyenne : un
+ *    mois de vacances ne doit pas gonfler l'enveloppe courses des onze autres ;
+ *  - une catégorie **irrégulière** — le dentiste, l'entretien de la voiture —
+ *    est proposée **lissée**, total divisé par la période. Sa médiane
+ *    mensuelle n'aurait aucun sens, et une enveloppe à zéro non plus.
+ *
+ * Le mois en cours est écarté : arrêté au 7, il porterait une semaine de
+ * dépenses et ferait proposer des enveloppes deux fois trop petites.
+ */
+export function proposerBudgets(state, { mois = 6, fin = null } = {}) {
+  const dernier = fin || state.tx.reduce((max, t) => (t.date > max ? t.date : max), '');
+  if (!dernier) return [];
+
+  const bornes = monthBounds(dernier.slice(0, 7));
+  if (!bornes) return [];
+  const complet = dernier >= bornes.end;
+  const derniereMois = complet ? dernier.slice(0, 7) : shiftMonth(dernier.slice(0, 7), -1);
+  if (!derniereMois) return [];
+
+  const periodes = [];
+  for (let i = mois - 1; i >= 0; i -= 1) {
+    const p = shiftMonth(derniereMois, -i);
+    if (p) periodes.push(p);
+  }
+
+  // Un mois sans la moindre écriture n'est pas un mois à zéro : c'est un mois
+  // qu'on n'a pas importé, et il ne doit pas diluer les moyennes.
+  const vivants = periodes.filter((p) => {
+    const b = monthBounds(p);
+    return ledger(state, b.start, b.end).length > 0;
+  });
+  if (!vivants.length) return [];
+
+  const parCategorie = new Map();
+  for (const period of vivants) {
+    const b = monthBounds(period);
+    const duMois = new Map();
+    for (const tx of ledger(state, b.start, b.end)) {
+      if (!tx.cat || kindOf(tx.cat, tx.cents) !== 'depense') continue;
+      duMois.set(tx.cat, (duMois.get(tx.cat) || 0) - tx.cents);
+    }
+    for (const [cat, cents] of duMois) {
+      if (cents <= 0) continue;
+      const liste = parCategorie.get(cat) || [];
+      liste.push(cents);
+      parCategorie.set(cat, liste);
+    }
+  }
+
+  const seuil = Math.max(2, Math.ceil(vivants.length / 2));
+  const propositions = [];
+
+  for (const [cat, montants] of parCategorie) {
+    const total = montants.reduce((s, c) => s + c, 0);
+    const regulier = montants.length >= seuil;
+    propositions.push({
+      cat,
+      moisObserves: montants.length,
+      moisPeriode: vivants.length,
+      regulier,
+      medianeCents: mediane(montants),
+      lisseCents: Math.round(total / vivants.length),
+      proposeCents: regulier ? mediane(montants) : Math.round(total / vivants.length),
+      minCents: Math.min(...montants),
+      maxCents: Math.max(...montants),
+      totalCents: total,
+      actuelCents: budgetFor(state, cat, null),
+    });
+  }
+
+  propositions.sort((a, b) => b.proposeCents - a.proposeCents);
+  return propositions;
+}
+
+/** Médiane, insensible à un mois aberrant — c'est tout l'intérêt ici. */
+function mediane(valeurs) {
+  const triees = [...valeurs].sort((a, b) => a - b);
+  const milieu = Math.floor(triees.length / 2);
+  return triees.length % 2 ? triees[milieu] : Math.round((triees[milieu - 1] + triees[milieu]) / 2);
 }
 
 /**

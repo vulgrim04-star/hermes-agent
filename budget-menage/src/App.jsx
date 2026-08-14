@@ -196,7 +196,9 @@ function Shell({ local = false }) {
 
       <main className="wrap">
         <h1 className="largetitle">{title}</h1>
-        {!demo && !local && sync === 'echec' && <SyncAlert message={error} />}
+        {sync === 'echec' && (local || demo
+          ? <LocalAlert message={error} />
+          : <SyncAlert message={error} />)}
         {loading ? (
           <p className="muted">Chargement de vos écritures…</p>
         ) : (
@@ -242,6 +244,32 @@ function Oeil() {
     >
       {masque ? <IconEyeOff /> : <IconEye />}
     </button>
+  );
+}
+
+/**
+ * L'échec d'écriture **locale**, dit en toutes lettres.
+ *
+ * Sans compte, le navigateur est le seul dépositaire du journal : si l'écriture
+ * y échoue — stockage plein, mode privé qui refuse, navigateur bridé — le
+ * travail de la session sera perdu au rechargement. C'était jusqu'ici
+ * silencieux : l'état passait bien en « échec », mais l'alerte ne s'affichait
+ * qu'en mode synchronisé. Un échec qu'on ne voit pas est un échec qui ment.
+ */
+function LocalAlert({ message }) {
+  return (
+    <div className="note err" role="alert" style={{ marginBottom: 18 }}>
+      <strong>Vos écritures n’ont pas pu être enregistrées dans ce navigateur.</strong>
+      <p style={{ marginTop: 6 }}>
+        {message || 'Stockage du navigateur plein ou refusé.'} Tout ce qui a été fait depuis
+        l’ouverture est encore à l’écran, mais <strong>disparaîtra au rechargement</strong>.
+      </p>
+      <p style={{ marginTop: 6 }}>
+        Téléchargez une sauvegarde tout de suite — <em>Plus → Réglages → Export et sauvegarde</em> —
+        puis libérez de la place : les navigateurs limitent chaque site à quelques mégaoctets, et
+        la navigation privée refuse parfois d’écrire quoi que ce soit.
+      </p>
+    </div>
   );
 }
 

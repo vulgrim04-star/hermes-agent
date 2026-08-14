@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 211 tests
+npm test                    # 218 tests
 ```
 
 ---
@@ -337,6 +337,28 @@ donc de la file de révision, et ni les règles ni la correspondance de la banqu
 reposer une catégorie par-dessus. Les exports sortent une ligne par part, avec une colonne
 « Part » (`1/2`) pour qu'un total fait dans Excel tombe juste.
 
+## Enveloppes proposées
+
+*Plus → Réglages → Budgets par catégorie → « Proposer des enveloppes d'après l'historique ».*
+
+Poser vingt budgets à la main demande vingt chiffres qu'on n'a pas en tête — c'est la raison pour
+laquelle un budget reste vide. Le journal les connaît :
+
+- une catégorie **régulière** (présente au moins un mois sur deux) est proposée à sa **médiane**,
+  pas à sa moyenne : un mois de vacances ne doit pas gonfler l'enveloppe des onze autres ;
+- une catégorie **irrégulière** — le dentiste, l'entretien de la voiture — est **lissée** sur la
+  période : sa médiane mensuelle n'aurait aucun sens, et une enveloppe à zéro non plus ;
+- le mois en cours est écarté, sans quoi un mois arrêté au 7 ferait proposer des enveloppes deux
+  fois trop petites ;
+- un mois sans la moindre écriture n'est pas un mois à zéro : c'est un mois qu'on n'a pas importé,
+  et il ne dilue pas les moyennes.
+
+Chaque ligne dit **d'où sort le chiffre** — nombre de mois observés, et les extrêmes. Un budget
+proposé sans son écart est un chiffre qu'on accepte sans le comprendre, et qu'on ne saura pas
+corriger quand il dérivera. Mesuré sur l'export réel : douze enveloppes, 3'700.36 par mois, dont
+des impôts à 795.41 de médiane sur une amplitude de 229.20 à 3'285.14 — c'est justement cette
+amplitude qu'il faut voir avant d'accepter.
+
 ## Filtres du journal
 
 *Écritures* cumule une recherche texte — libellé, catégorie, **note** — et quatre filtres :
@@ -371,7 +393,7 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 211 tests.
+et c'est là que vivent les 218 tests.
 
 ## Limites connues
 

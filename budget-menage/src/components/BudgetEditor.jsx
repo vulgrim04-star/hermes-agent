@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import CategorySelect from './CategorySelect.jsx';
-import { setBudget } from '../lib/budgets.js';
+import { proposerBudgets, setBudget } from '../lib/budgets.js';
 import { fmt, parseAmount } from '../lib/money.js';
 import { monthLabel } from '../lib/dates.js';
 import { edit, useBudget } from '../store/useBudget.js';
@@ -77,6 +77,8 @@ export default function BudgetEditor({ periods }) {
           </button>
         </div>
 
+        <Propositions data={data} />
+
         {lignes.length ? (
           <ul className="rows">
             {lignes.map((c) => {
@@ -115,6 +117,96 @@ export default function BudgetEditor({ periods }) {
           <p className="muted">Aucune enveloppe pour l’instant.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Les enveloppes proposées par le journal.
+ *
+ * Poser vingt budgets à la main demande vingt chiffres qu'on n'a pas en tête —
+ * c'est la raison pour laquelle un budget reste vide. Le journal les connaît :
+ * il suffit de les lire, et de laisser le dernier mot à l'utilisateur.
+ *
+ * Chaque ligne dit **d'où sort le chiffre** : combien de mois observés, et
+ * entre quels extrêmes. Un budget proposé sans son écart est un chiffre qu'on
+ * accepte sans le comprendre, et qu'on ne saura pas corriger quand il dérivera.
+ */
+function Propositions({ data }) {
+  const [mois, setMois] = useState(6);
+  const [ouvert, setOuvert] = useState(false);
+  const propositions = proposerBudgets(data, { mois });
+  if (!propositions.length) return null;
+
+  const manquantes = propositions.filter((p) => p.actuelCents === null);
+
+  return (
+    <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+      <div className="row" style={{ alignItems: 'center' }}>
+        <button type="button" className="btn" onClick={() => setOuvert((o) => !o)}>
+          {ouvert ? 'Masquer' : 'Proposer'} des enveloppes d’après l’historique
+        </button>
+        {ouvert && (
+          <label className="field">
+            Sur
+            <select value={mois} onChange={(e) => setMois(Number(e.target.value))}>
+              <option value={3}>3 mois</option>
+              <option value={6}>6 mois</option>
+              <option value={12}>12 mois</option>
+            </select>
+          </label>
+        )}
+      </div>
+
+      {ouvert && (
+        <>
+          <p className="hint">
+            Une catégorie régulière est proposée à sa <strong>médiane</strong> — un mois de vacances
+            ne doit pas gonfler l’enveloppe des onze autres. Une catégorie irrégulière est
+            <strong> lissée</strong> sur la période : le dentiste ne se budgète pas au mois où il
+            tombe. Le mois en cours est écarté.
+          </p>
+
+          {manquantes.length > 0 && (
+            <button
+              type="button"
+              className="btn primary wide"
+              style={{ marginTop: 12 }}
+              onClick={() => edit((s) => {
+                for (const p of manquantes) setBudget(s, p.cat, null, p.proposeCents);
+              })}
+            >
+              Poser les {manquantes.length} enveloppes manquantes ({fmt(
+                manquantes.reduce((somme, p) => somme + p.proposeCents, 0))} par mois)
+            </button>
+          )}
+
+          <ul className="rows" style={{ marginTop: 8 }}>
+            {propositions.map((p) => (
+              <li key={p.cat}>
+                <div className="lead">
+                  <b>{p.cat}</b>
+                  <span>
+                    {p.regulier
+                      ? `médiane sur ${p.moisObserves} mois · de ${fmt(p.minCents)} à ${fmt(p.maxCents)}`
+                      : `${p.moisObserves} mois sur ${p.moisPeriode} · ${fmt(p.totalCents)} lissés`}
+                    {p.actuelCents !== null && ` · posé à ${fmt(p.actuelCents)}`}
+                  </span>
+                </div>
+                <span className="amount">{fmt(p.proposeCents)}</span>
+                <button
+                  type="button"
+                  className="btn quiet"
+                  disabled={p.actuelCents === p.proposeCents}
+                  onClick={() => edit((s) => setBudget(s, p.cat, null, p.proposeCents))}
+                >
+                  {p.actuelCents === null ? 'Poser' : 'Ajuster'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
