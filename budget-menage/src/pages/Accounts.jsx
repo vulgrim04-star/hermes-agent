@@ -6,7 +6,8 @@ import Hero from '../components/Hero.jsx';
 import { frDate } from '../lib/dates.js';
 import { fmt, parseAmount } from '../lib/money.js';
 import {
-  accountBalances, addAccount, clearAccountBalance, renameAccount, setAccountBalance,
+  accountBalances, addAccount, clearAccountBalance, controleSoldes, renameAccount,
+  setAccountBalance,
 } from '../lib/ledger.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
@@ -59,6 +60,8 @@ export default function Accounts() {
           </div>
         )}
       </div>
+
+      <Controle data={data} />
 
       {soldes.comptes.length ? (
         <div className="block">
@@ -184,5 +187,78 @@ function Compte({ compte }) {
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * Le rapprochement d'un relevé à l'autre.
+ *
+ * L'import prouve qu'un relevé boucle sur lui-même. Ce contrôle-ci prouve que
+ * **rien ne manque entre deux relevés** — et c'est la seule vérification qui
+ * attrape un mois jamais importé, un export tronqué, un fichier oublié. Le
+ * journal paraît alors complet, les totaux sont plausibles, et l'écart est
+ * pourtant là.
+ *
+ * La carte ne s'affiche pas quand il n'y a rien à contrôler : deux soldes au
+ * minimum sont nécessaires par compte, et un contrôle impossible n'est pas un
+ * contrôle réussi — le dire aurait été mentir par omission.
+ */
+function Controle({ data }) {
+  const r = controleSoldes(data);
+  if (!r.controlables) return null;
+
+  return (
+    <div className="block">
+      <header>
+        <div className="grow">
+          <h3>Contrôle des soldes</h3>
+          <p>
+            Entre deux soldes connus, la différence doit valoir la somme des mouvements. Sinon,
+            l’écart chiffre exactement ce qui manque au journal.
+          </p>
+        </div>
+      </header>
+
+      <dl className="stats">
+        <div className="stat">
+          <dt>Intervalles contrôlés</dt>
+          <dd>{r.comptes.reduce((s, c) => s + c.controles.length, 0)}</dd>
+        </div>
+        <div className="stat">
+          <dt>Écarts</dt>
+          <dd className={r.ecarts > 0 ? 'alert' : 'pos'}>{r.ecarts}</dd>
+        </div>
+      </dl>
+
+      <div className="body flush">
+        <ul className="rows">
+          {r.comptes.flatMap((compte) => compte.controles.map((c) => (
+            <li key={`${compte.key}-${c.a}`}>
+              <div className="lead">
+                <b>{compte.label}</b>
+                <span>
+                  du {frDate(c.de)} au {frDate(c.a)} · {c.ecritures} écriture(s)
+                  {c.saisi && <> · solde saisi</>}
+                </span>
+              </div>
+              <span className={c.ecartCents === 0 ? 'amount pos' : 'amount neg'}>
+                {c.ecartCents === 0 ? 'boucle' : fmt(c.ecartCents)}
+              </span>
+            </li>
+          )))}
+        </ul>
+      </div>
+
+      {r.ecarts > 0 && (
+        <div className="body">
+          <div className="note warn">
+            Un écart <strong>négatif</strong> veut dire que le journal montre moins de mouvements
+            que les soldes n’en supposent : il manque des écritures sur cette période — un relevé
+            à réimporter. Un écart <strong>positif</strong> veut dire l’inverse : des écritures en
+            trop, ou un solde saisi qui n’est pas celui de cette date.
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

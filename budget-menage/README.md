@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 218 tests
+npm test                    # 224 tests
 ```
 
 ---
@@ -367,6 +367,26 @@ lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un
 Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
 dépouillement : trois listes déroulantes, quinze lignes.
 
+## Contrôle des soldes
+
+L'import prouve qu'**à l'intérieur** d'un relevé, ouverture + mouvements = clôture. Il ne peut
+rien dire de ce qui se passe **entre** deux relevés : un mois jamais importé, un export tronqué,
+un fichier oublié. Le journal paraît complet, les totaux sont plausibles, et il manque pourtant
+des écritures.
+
+*Plus → Comptes → Contrôle des soldes* fait l'arithmétique qui ne pardonne pas : entre deux soldes
+connus, la différence doit valoir la somme des mouvements de l'intervalle. Sinon l'écart chiffre
+exactement ce qui manque.
+
+- Un écart **négatif** : le journal montre moins de mouvements que les soldes n'en supposent — il
+  manque des écritures, un relevé est à réimporter.
+- Un écart **positif** : l'inverse — des écritures en trop, ou un solde saisi qui n'est pas celui
+  de cette date.
+- Le jour du premier solde est **exclu** de l'intervalle : il est déjà compris dedans, et le
+  recompter créerait un faux écart à chaque contrôle.
+- La carte ne s'affiche pas quand il n'y a rien à contrôler — il faut deux soldes par compte. Un
+  contrôle impossible n'est pas un contrôle réussi.
+
 ## Notes
 
 Une catégorie range, une **note** explique : « remboursé par Marie », « acompte, solde en mars ».
@@ -393,7 +413,7 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 218 tests.
+et c'est là que vivent les 224 tests.
 
 ## Limites connues
 
