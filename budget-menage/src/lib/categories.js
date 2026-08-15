@@ -153,6 +153,16 @@ export const CATEGORIES = [
     "kind": "depense"
   },
   {
+    "name": "Intérêts hypothécaires",
+    "parent": "Logement",
+    "kind": "depense"
+  },
+  {
+    "name": "Amortissement hypothécaire",
+    "parent": "Logement",
+    "kind": "epargne"
+  },
+  {
     "name": "Primes LAMal",
     "parent": "Santé",
     "kind": "depense"
