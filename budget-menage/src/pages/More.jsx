@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { IconChevron, IconImport, IconReview, IconSettings, IconTax, IconWallet } from '../components/Icons.jsx';
 import { leaveDemo } from '../lib/demo.js';
 import { accountBalances, pendingCount } from '../lib/ledger.js';
+import { resteAAffiner } from '../lib/affiner.js';
 import { signOut } from '../store/useAuth.js';
 import { useBudget } from '../store/useBudget.js';
 
@@ -21,15 +22,17 @@ export default function More({ local = false, demo = false, email = null }) {
   const data = useBudget((s) => s.data);
   const pending = pendingCount(data);
   const soldes = accountBalances(data);
+  const affiner = resteAAffiner(data);
 
   return (
     <>
       <div className="block">
         <ul className="menu">
           <Ligne to="/revision" Icon={IconReview} titre="Révision"
-            sous={pending.total > 0
-              ? `${pending.total} écriture(s) à trancher`
-              : 'rien en attente'}
+            sous={[
+              pending.total > 0 ? `${pending.total} à trancher` : null,
+              affiner.ecritures > 0 ? `${affiner.ecritures} à affiner` : null,
+            ].filter(Boolean).join(' · ') || 'rien en attente'}
             marque={pending.total > 0 ? pending.total : null} />
           <Ligne to="/comptes" Icon={IconWallet} titre="Comptes"
             sous={soldes.etablis === soldes.comptes.length

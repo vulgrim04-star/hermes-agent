@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import Affinage from '../components/Affinage.jsx';
 import Avatar from '../components/Avatar.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { catOf } from '../lib/categories.js';
@@ -105,6 +106,8 @@ export default function Review() {
           </div>
         </div>
       )}
+
+      <Affinage />
 
       <div className="block">
         <header>

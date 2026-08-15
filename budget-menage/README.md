@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 232 tests
+npm test                    # 244 tests
 ```
 
 ---
@@ -367,6 +367,30 @@ lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un
 Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
 dépouillement : trois listes déroulantes, quinze lignes.
 
+## Affiner ce que la banque a classé en gros
+
+La banque ne classe qu'en racines : « Santé, sport et beauté » devient *Santé*, « Assurances »
+devient *Assurances*. Or tout ce qui sert vraiment travaille en catégories **fines** — une
+déclaration distingue une prime LAMal d'une assurance ménage, un budget distingue les courses des
+restaurants.
+
+Mesuré sur un export réel : **352 écritures sur 783 portent une racine**, pour 35'426 francs —
+plus que les 154 sans catégorie. Ce gisement était invisible : ces écritures ne remontaient nulle
+part, puisqu'elles *sont* classées.
+
+*Plus → Révision → À affiner* les regroupe par tiers, du plus lourd au plus léger. Le sélecteur
+propose d'abord les **sous-catégories de la racine** — dans neuf cas sur dix la bonne réponse est
+là, et la faire chercher dans soixante-dix entrées serait le meilleur moyen de ne jamais affiner —
+puis le reste du plan de comptes, parce que la banque se trompe de branche : elle range la prime
+maladie sous *Assurances*, la déclaration la veut sous *Santé*.
+
+- Seules les **racines** sont remplacées : une catégorie fine déjà posée n'est jamais touchée.
+- Le choix est **retenu en règle de tiers** dans le même geste. Les règles passant avant la
+  correspondance de la banque à l'import, le prochain relevé arrive déjà fin — sans quoi le
+  travail serait à refaire tous les mois.
+- Un même tiers réparti sur deux racines est proposé deux fois : *Migros* peut être *Alimentation*
+  sur une ligne et *Shopping* sur une autre, et les deux ne se traitent pas ensemble.
+
 ## Récapitulatif fiscal
 
 *Plus → Impôts.* Ce que le journal contient, poste par poste, sur une année civile : primes
@@ -435,7 +459,7 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 232 tests.
+et c'est là que vivent les 244 tests.
 
 ## Limites connues
 
