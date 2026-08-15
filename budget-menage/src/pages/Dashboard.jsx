@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import AreaChart from '../components/AreaChart.jsx';
 import Avatar from '../components/Avatar.jsx';
 import BudgetCard from '../components/BudgetCard.jsx';
+import Cloture from '../components/Cloture.jsx';
 import Hero, { pourcentage } from '../components/Hero.jsx';
 import RangePicker, { moisDe } from '../components/RangePicker.jsx';
 import Segments from '../components/Segments.jsx';
@@ -73,6 +74,7 @@ export default function Dashboard() {
           : <YearTotals data={data} year={period} />}
       </div>
 
+      {scale === 'mois' && <Cloture data={data} period={period} />}
       {scale === 'mois' && <BudgetCard data={data} period={period} />}
       {scale === 'mois' ? <MonthDetail data={data} period={period} /> : <YearTable data={data} year={period} />}
     </>

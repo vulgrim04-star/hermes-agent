@@ -859,3 +859,22 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; 
 .filtres { gap: 8px; }
 .filtres select { flex: 1 1 44%; min-width: 0; font-size: 15px; padding: 9px 10px; min-height: 40px; }
 @media (min-width: 700px) { .filtres select { flex: 0 1 auto; } }
+
+/* ------------------------------------------------------------- à faire
+   Une pastille de gravité, pas une ligne colorée : le rouge doit rester rare
+   pour vouloir dire quelque chose, et une liste entièrement teintée ne
+   hiérarchise plus rien. */
+.puce-gravite {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--ink-4);
+}
+.puce-gravite.alerte { background: var(--err); }
+.puce-gravite.attention { background: var(--warn); }
+.puce-gravite.info { background: var(--ink-4); }
+/* La ligne entière est cliquable, sans en avoir l'air : le lien porte le
+   texte, il ne se souligne pas et ne prend pas la couleur d'accent. */
+a.lead { color: inherit; text-decoration: none; }
+a.lead:hover b { text-decoration: underline; }

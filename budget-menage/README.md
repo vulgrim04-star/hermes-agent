@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 244 tests
+npm test                    # 253 tests
 ```
 
 ---
@@ -367,6 +367,28 @@ lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un
 Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
 dépouillement : trois listes déroulantes, quinze lignes.
 
+## À faire : la clôture du mois
+
+Tout ce que l'application sait signaler existait déjà — écritures à trancher, à affiner, paires à
+confirmer, comptes sans solde, écarts de rapprochement, charges qui ont dérivé, enveloppes
+dépassées, positions non relevées. Le problème n'était pas qu'elle se taise : **chaque signal
+vivait sur son écran**, et un ménage qui ouvre l'application dix minutes par mois n'ira pas les
+chercher un par un.
+
+La carte *À faire*, en tête du tableau de bord, les rassemble et les ordonne par gravité. Elle ne
+calcule rien de neuf.
+
+- Elle **disparaît quand il n'y a rien** : c'est ce qui la rend crédible. Une liste toujours
+  présente devient un décor, et un décor ne se lit pas. Un test vérifie qu'un journal propre ne
+  produit aucune ligne.
+- Chaque ligne mène à l'écran qui la traite, et dit **pourquoi ça compte** : « tant que les
+  transferts ne sont pas confirmés, ils comptent double dans les revenus et les dépenses ».
+- Une pastille de gravité, pas une ligne colorée : le rouge doit rester rare pour vouloir dire
+  quelque chose.
+
+Sur l'export réel, au premier import : 154 écritures sans catégorie, 53 transferts à confirmer,
+6 comptes sans solde, 352 catégories à préciser pour 35'398.67.
+
 ## Affiner ce que la banque a classé en gros
 
 La banque ne classe qu'en racines : « Santé, sport et beauté » devient *Santé*, « Assurances »
@@ -459,7 +481,7 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 244 tests.
+et c'est là que vivent les 253 tests.
 
 ## Limites connues
 
