@@ -367,6 +367,31 @@ lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un
 Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
 dépouillement : trois listes déroulantes, quinze lignes.
 
+## Hors ligne
+
+L'application s'ouvre **sans réseau** une fois visitée. C'était une contradiction du produit :
+tout est calculé et rangé dans le navigateur, aucune requête n'est nécessaire pour lire son
+budget — et pourtant l'application installée sur l'écran d'accueil ne démarrait pas dans un train.
+Le journal était local, le code ne l'était pas.
+
+- La liste des fichiers à mettre en cache est **écrite à la construction** (`vite.config.js`) :
+  les noms portent une empreinte de contenu, et une liste tenue à la main serait fausse dès le
+  déploiement suivant. Le cache est nommé d'après cette empreinte, si bien qu'une version nouvelle
+  n'hérite jamais des fichiers de l'ancienne.
+- **Rien de ce qui sort du site n'est mis en cache** — ni Supabase, ni quoi que ce soit d'autre :
+  un journal comptable n'a pas à traîner dans un cache HTTP.
+- Une navigation retombe sur la coquille : hors ligne, personne ne sert `/ecritures`.
+- Un fichier manquant ne fait pas échouer l'installation entière, ce qui laisserait l'application
+  sans cache du tout.
+
+Vérifié en coupant le réseau : rechargement, lien profond `/patrimoine` et journal complet
+répondent à l'identique. Et **la contre-épreuve** — le même parcours en empêchant le service
+worker de s'installer — échoue sur `net::ERR_INTERNET_DISCONNECTED` : le contrôle sait donc
+échouer, ce qui est la seule chose qui le rende utile.
+
+La couleur de démarrage suivait encore l'ancien thème clair : l'écran de lancement et la barre
+d'état sont passés au fond sombre de l'application.
+
 ## À faire : la clôture du mois
 
 Tout ce que l'application sait signaler existait déjà — écritures à trancher, à affiner, paires à

@@ -79,6 +79,87 @@ function spaFallback() {
   };
 }
 
+/**
+ * Service worker : l'application doit s'ouvrir **sans réseau**.
+ *
+ * C'était une contradiction du produit : tout est calculé et rangé dans le
+ * navigateur, aucune requête n'est nécessaire pour lire son budget — et
+ * pourtant l'application, installée sur l'écran d'accueil, ne démarrait pas
+ * dans un train. Le journal était local, le code ne l'était pas.
+ *
+ * La liste des fichiers à mettre en cache est **écrite à la construction** :
+ * les noms portent une empreinte de contenu, et une liste tenue à la main
+ * serait fausse dès le déploiement suivant. Le cache est nommé d'après cette
+ * même empreinte, si bien qu'une nouvelle version n'hérite jamais des
+ * fichiers de l'ancienne.
+ */
+function serviceWorker() {
+  let base = '/';
+  return {
+    name: 'budget-service-worker',
+    configResolved(config) { base = config.base; },
+    generateBundle(_options, bundle) {
+      const fichiers = Object.keys(bundle)
+        .filter((f) => !f.endsWith('.map'))
+        .map((f) => base + f);
+      // `index.html` n'est pas dans le bundle des assets : il est émis à part.
+      const shell = [base, base + 'index.html', base + 'manifest.webmanifest',
+        base + 'icon-192.png', base + 'icon-512.png', base + 'icon.svg', base + 'favicon.svg'];
+      const liste = [...new Set([...shell, ...fichiers])];
+      const version = fichiers.find((f) => f.endsWith('.js')) || String(Date.now());
+
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        source: `/* Généré à la construction — ne pas modifier à la main. */
+const CACHE = 'budget-' + ${JSON.stringify(version)};
+const PRECACHE = ${JSON.stringify(liste, null, 2)};
+
+self.addEventListener('install', (e) => {
+  // Chaque fichier est demandé séparément : un seul 404 ne doit pas faire
+  // échouer l'installation entière et laisser l'application sans cache.
+  e.waitUntil(caches.open(CACHE).then((c) => Promise.all(
+    PRECACHE.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => null)),
+  )).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys()
+    .then((cles) => Promise.all(cles.filter((c) => c !== CACHE).map((c) => caches.delete(c))))
+    .then(() => self.clients.claim()));
+});
+
+self.addEventListener('fetch', (e) => {
+  const { request } = e;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  // Rien de ce qui sort du site n'est mis en cache : ni Supabase, ni quoi que
+  // ce soit d'autre. Un journal comptable n'a pas à traîner dans un cache HTTP.
+  if (url.origin !== self.location.origin) return;
+
+  // Une navigation retombe sur la coquille : l'application est une SPA, et
+  // hors ligne il n'y a personne pour servir /ecritures.
+  if (request.mode === 'navigate') {
+    e.respondWith(fetch(request).catch(() => caches.match(${JSON.stringify(base + 'index.html')})
+      .then((r) => r || caches.match(${JSON.stringify(base)}))));
+    return;
+  }
+
+  // Les assets portent une empreinte : s'ils sont en cache, ils sont bons.
+  e.respondWith(caches.match(request).then((hit) => hit || fetch(request).then((reponse) => {
+    if (reponse && reponse.ok && reponse.type === 'basic') {
+      const copie = reponse.clone();
+      caches.open(CACHE).then((c) => c.put(request, copie));
+    }
+    return reponse;
+  })));
+});
+`,
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   const url = pick(process.env, 'SUPABASE_URL');
   const key = assertAnonKey(pick(process.env, 'SUPABASE_ANON_KEY'));
@@ -87,7 +168,7 @@ export default defineConfig(() => {
     // GitHub Pages sert un dépôt de projet sous `/<dépôt>/` ; Vercel sert à la
     // racine. La base se règle donc à la construction plutôt que d'être figée.
     base: process.env.BASE_PATH || '/',
-    plugins: [react(), spaFallback()],
+    plugins: [react(), spaFallback(), serviceWorker()],
     define: {
       __SUPABASE_URL__: JSON.stringify(url),
       __SUPABASE_ANON_KEY__: JSON.stringify(key),
