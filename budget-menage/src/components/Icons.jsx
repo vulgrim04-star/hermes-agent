@@ -91,6 +91,15 @@ export const IconWallet = (p) => (
   </Glyph>
 );
 
+/** Impôts — la feuille qu'on remplit une fois l'an. */
+export const IconTax = (p) => (
+  <Glyph {...p}>
+    <path d="M6.5 3.5h8.2L19 7.8v12.7H6.5Z" />
+    <path d="M14.2 3.6v4.4h4.6" />
+    <path d="M9.4 12.4h5.4M9.4 16.2h3.6" />
+  </Glyph>
+);
+
 /** Plus — l'écran de débordement : révision, import, réglages. */
 export const IconMore = (p) => (
   <Glyph {...p}>

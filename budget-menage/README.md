@@ -147,7 +147,7 @@ un poste où l'on ne veut rien déposer en ligne. Un bandeau le rappelle en perm
 npm install
 cp .env.example .env        # y mettre les deux valeurs Supabase
 npm run dev                 # http://localhost:5173
-npm test                    # 224 tests
+npm test                    # 232 tests
 ```
 
 ---
@@ -367,6 +367,28 @@ lignes et le solde affichés en tête suivent, sans quoi on ne saurait pas si un
 Sur 783 écritures, retrouver « ce qui n'est pas classé en juillet, au débit » cesse d'être un
 dépouillement : trois listes déroulantes, quinze lignes.
 
+## Récapitulatif fiscal
+
+*Plus → Impôts.* Ce que le journal contient, poste par poste, sur une année civile : primes
+d'assurance maladie, frais médicaux à charge, prévoyance liée, intérêts de dettes, dons, frais de
+déplacement, acomptes versés, et la fortune au 31 décembre — dettes déduites. Export `.xlsx`.
+
+**Aucune déduction n'est calculée**, et c'est délibéré. Les plafonds, les seuils et les barèmes
+dépendent du canton, de la commune, de l'état civil et du revenu net déterminant ; un montant
+déductible calculé de travers ne se voit pas dans une déclaration, il se voit dans la taxation un
+an plus tard. Chaque poste porte donc la règle en une phrase et le montant brut tiré des relevés.
+À quelqu'un qui sait remplir une déclaration, il ne manque pas les règles : il manque les totaux.
+
+- Une **année incomplète** est signalée. Douze mois mouvementés ne prouvent pas que tout est là,
+  mais moins de douze prouvent que non — et rien, dans les chiffres, ne le dirait.
+- Les postes ne se remplissent qu'avec des catégories **fines** : la banque classe en
+  « Assurances », la déclaration distingue une prime LAMal d'une assurance ménage.
+- Les **revenus encaissés** ne sont pas le salaire brut. Le certificat de salaire fait foi ; ce
+  total sert à le recouper.
+- Deux catégories ont été ajoutées pour le propriétaire : **Intérêts hypothécaires** (dépense,
+  déductible) et **Amortissement hypothécaire** (épargne — il réduit la dette, donc augmente la
+  fortune imposable, et n'a rien à faire dans le reste à vivre).
+
 ## Contrôle des soldes
 
 L'import prouve qu'**à l'intérieur** d'un relevé, ouverture + mouvements = clôture. Il ne peut
@@ -413,7 +435,7 @@ supabase/       schéma et règles d'accès, source de vérité versionnée
 
 Le domaine (`src/lib/`) ne touche ni à React, ni au réseau : il rend des résultats inertes que
 l'interface affiche et que le store persiste. C'est ce qui le rend testable sur des échantillons,
-et c'est là que vivent les 224 tests.
+et c'est là que vivent les 232 tests.
 
 ## Limites connues
 

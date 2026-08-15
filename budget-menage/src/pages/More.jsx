@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-import { IconChevron, IconImport, IconReview, IconSettings, IconWallet } from '../components/Icons.jsx';
+import { IconChevron, IconImport, IconReview, IconSettings, IconTax, IconWallet } from '../components/Icons.jsx';
 import { leaveDemo } from '../lib/demo.js';
 import { accountBalances, pendingCount } from '../lib/ledger.js';
 import { signOut } from '../store/useAuth.js';
@@ -36,6 +36,8 @@ export default function More({ local = false, demo = false, email = null }) {
               ? `${soldes.comptes.length} compte(s), tous soldés`
               : `${soldes.inconnus} compte(s) sans solde établi`}
             marque={soldes.inconnus > 0 ? soldes.inconnus : null} />
+          <Ligne to="/impots" Icon={IconTax} titre="Impôts"
+            sous="récapitulatif annuel, à reporter dans la déclaration" />
           <Ligne to="/import" Icon={IconImport} titre="Importer un relevé"
             sous="CSV ou MT940, lu dans ce navigateur" />
           <Ligne to="/reglages" Icon={IconSettings} titre="Réglages"

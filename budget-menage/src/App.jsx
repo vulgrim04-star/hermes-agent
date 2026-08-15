@@ -36,6 +36,7 @@ import Review from './pages/Review.jsx';
 import Settings from './pages/Settings.jsx';
 import More from './pages/More.jsx';
 import Accounts from './pages/Accounts.jsx';
+import Tax from './pages/Tax.jsx';
 
 /*
  * Cinq onglets, pas six.
@@ -65,6 +66,7 @@ const TITLES = {
   '/patrimoine': 'Patrimoine',
   '/import': 'Import',
   '/comptes': 'Comptes',
+  '/impots': 'Impôts',
   '/plus': 'Plus',
   '/reglages': 'Réglages',
   '/mot-de-passe': 'Mot de passe',
@@ -210,6 +212,7 @@ function Shell({ local = false }) {
             <Route path="/patrimoine" element={<NetWorth />} />
             <Route path="/import" element={<Import />} />
             <Route path="/comptes" element={<Accounts />} />
+            <Route path="/impots" element={<Tax />} />
             <Route path="/plus" element={<More local={local} demo={demo} email={email} />} />
             <Route path="/reglages" element={<Settings />} />
             <Route path="/mot-de-passe" element={<Password />} />

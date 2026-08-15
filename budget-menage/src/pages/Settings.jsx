@@ -4,6 +4,7 @@ import BudgetEditor from '../components/BudgetEditor.jsx';
 import CategorySelect from '../components/CategorySelect.jsx';
 import { LEAVES, catOf, kindOf, rootOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
+import { download } from '../lib/download.js';
 import { getTheme, setTheme } from '../lib/theme.js';
 import { fmt } from '../lib/money.js';
 import { applyBank, emptyState, monthsAvailable, normLabel } from '../lib/ledger.js';
@@ -266,16 +267,6 @@ export default function Settings() {
 }
 
 /* ------------------------------------------------------------- fichiers */
-
-function download(filename, content, type) {
-  const blob = content instanceof Blob ? content : new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 function downloadJson(data, notify) {
   const stamp = new Date().toISOString().slice(0, 10);
