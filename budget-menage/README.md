@@ -438,6 +438,26 @@ maladie sous *Assurances*, la déclaration la veut sous *Santé*.
 - Un même tiers réparti sur deux racines est proposé deux fois : *Migros* peut être *Alimentation*
   sur une ligne et *Shopping* sur une autre, et les deux ne se traitent pas ensemble.
 
+### Où s'arrêter
+
+Le travail est à **rendement décroissant**, et fortement : mesuré sur le même export, cinq tiers
+valent 43 % du montant à affiner, vingt en valent 80 %, et **98 des 147 tiers ne reviennent qu'une
+seule fois**, pour 6'807.53 à eux tous — 19 % du total. Une file de cent quarante-sept éléments
+d'apparence égale fait abandonner avant le vingtième, c'est-à-dire avant d'avoir eu l'essentiel.
+
+L'écran propose donc trois entrées, parce qu'on n'affine pas pour la même raison selon le jour :
+
+| Vue | Ce qu'elle montre | Sur l'export réel |
+|---|---|---|
+| **Déclaration** | Les tiers dont la racine alimente un poste de la déclaration | 77 tiers · 14'248.58 · 40 % du montant |
+| **Budget** | Les plus lourds, jusqu'à couvrir 80 % du montant | 20 tiers · 28'397.95 |
+| **Tout** | La file entière, du plus lourd au plus léger | 147 tiers · 35'398.67 |
+
+L'enjeu fiscal n'est pas une liste écrite à la main : il se **dérive** du plan de comptes et des
+postes fiscaux. Le jour où un poste gagne une catégorie, la file le sait sans qu'on y pense, et les
+deux ne peuvent pas diverger. Une pastille *déclaration* marque les lignes concernées dans toutes
+les vues — sur l'export réel, 77 des 147, ce qui est bien le point : elle discrimine.
+
 ## Récapitulatif fiscal
 
 *Plus → Impôts.* Ce que le journal contient, poste par poste, sur une année civile : primes

@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { aAffiner, affinerTiers, estRacine, feuillesDe, resteAAffiner } from './affiner.js';
+import { aAffiner, affinerTiers, concentration, enjeuFiscal, estRacine, feuillesDe, resteAAffiner } from './affiner.js';
 import { applyRules, emptyState, normLabel } from './ledger.js';
 
 let compteur = 0;
@@ -80,9 +80,25 @@ describe('file d’affinage', () => {
   });
 
   it('chiffre ce qui reste, en écritures et en francs', () => {
-    expect(resteAAffiner(journal())).toEqual({
+    expect(resteAAffiner(journal())).toMatchObject({
       tiers: 2, ecritures: 4, montantCents: 131_805 + 7_559,
     });
+  });
+
+  it('isole ce que la déclaration attend du reste', () => {
+    // SWICA est classé « Santé » (primes, frais médicaux) : à enjeu fiscal.
+    // MIGROL est classé « Transport », qui alimente les frais de déplacement.
+    const r = resteAAffiner(journal());
+    expect(r.fiscal.tiers).toBe(2);
+    expect(r.fiscal.montantCents).toBe(131_805 + 7_559);
+  });
+
+  it('ne compte pas comme fiscal un tiers qui ne l’est pas', () => {
+    const state = emptyState();
+    ecriture(state, { label: 'CINÉMA', cents: -2_000, cat: 'Loisirs' });
+    const r = resteAAffiner(state);
+    expect(r.tiers).toBe(1);
+    expect(r.fiscal).toEqual({ tiers: 0, ecritures: 0, montantCents: 0 });
   });
 });
 
@@ -137,5 +153,67 @@ describe('affiner un tiers', () => {
     const r = affinerTiers(state, 'MIGROL SERVICE', 'Transport', 'Carburant', { poserRegle: false });
     expect(r.touchees).toBe(1);
     expect(state.rules).toHaveLength(0);
+  });
+});
+
+describe('enjeu fiscal', () => {
+  it('nomme les postes qu’une racine alimenterait', () => {
+    expect(enjeuFiscal('Santé')).toContain('Primes d’assurance maladie');
+    expect(enjeuFiscal('Santé')).toContain('Frais médicaux à votre charge');
+    expect(enjeuFiscal('Logement')).toContain('Intérêts de dettes');
+  });
+
+  it('ne prête pas d’enjeu à une racine qui n’en a pas', () => {
+    // Le contrôle n'aurait aucune valeur si tout revenait non vide.
+    expect(enjeuFiscal('Loisirs')).toEqual([]);
+    expect(enjeuFiscal('Alimentation')).toEqual([]);
+    expect(enjeuFiscal('racine inventée')).toEqual([]);
+  });
+
+  it('porte l’enjeu sur chaque groupe de la file', () => {
+    const groupes = aAffiner(journal());
+    const sante = groupes.find((g) => g.racine === 'Santé');
+    expect(sante.postes.length).toBeGreaterThan(0);
+  });
+});
+
+describe('où s’arrêter', () => {
+  /** Un tiers lourd, puis une traîne de petits : la forme réelle d'un journal. */
+  function traine() {
+    const state = emptyState();
+    ecriture(state, { label: 'LOURD', cents: -80_000, cat: 'Santé' });
+    // Des libellés distincts sans chiffres : `payeeKey` retire les nombres du
+    // libellé (numéros de carte, références), et « PETIT 1 » / « PETIT 2 »
+    // seraient regroupés en un seul tiers.
+    for (let i = 0; i < 20; i += 1) {
+      ecriture(state, { label: `PETIT ${String.fromCharCode(65 + i)}`, cents: -1_000, cat: 'Loisirs' });
+    }
+    return state;
+  }
+
+  it('dit combien de tiers couvrent la part visée', () => {
+    const c = concentration(aAffiner(traine()));
+    // 80'000 sur 100'000 : le premier tiers suffit à couvrir 80 %.
+    expect(c.tiers).toBe(21);
+    expect(c.seuil).toBe(1);
+    expect(c.seuilCents).toBe(80_000);
+  });
+
+  it('suit la part demandée, et pas une constante cachée', () => {
+    const groupes = aAffiner(traine());
+    // À 90 %, un seul tiers ne suffit plus : il en faut onze.
+    expect(concentration(groupes, 0.9).seuil).toBe(11);
+    expect(concentration(groupes, 0.5).seuil).toBe(1);
+  });
+
+  it('compte les tiers vus une seule fois, qui sont le gros de la file', () => {
+    const c = concentration(aAffiner(traine()));
+    expect(c.uniques).toBe(21);
+    expect(c.uniquesCents).toBe(100_000);
+  });
+
+  it('ne divise pas par zéro sur une file vide', () => {
+    const c = concentration([]);
+    expect(c).toMatchObject({ totalCents: 0, tiers: 0, seuil: 0, uniques: 0 });
   });
 });
