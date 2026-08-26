@@ -242,6 +242,86 @@ export function decideTransfer(state, pairId, status) {
   }
 }
 
+/**
+ * Les paires proposées, rangées selon la seule chose qui demande un jugement.
+ *
+ * Mesuré sur un export réel : **53 paires en attente, dont 48 le jour même** et
+ * 5 avec un écart de deux à cinq jours, réparties sur cinq couples de comptes.
+ *
+ * Une sortie et une entrée du **même montant exact, le même jour, entre deux
+ * comptes du ménage** n'est pas une question : c'est la définition d'un
+ * virement interne. Les confirmer une par une, quarante-huit fois, ne fait
+ * gagner aucune certitude — ça fatigue, et ça finit par un clic sur le bouton
+ * global, qui emporte aussi les cinq paires douteuses.
+ *
+ * Les paires **décalées**, elles, sont les seules où une coïncidence est
+ * plausible : un paiement de 100.00 le mardi et une recette de 100.00 le
+ * vendredi peuvent n'avoir aucun rapport. Une paire confirmée à tort efface les
+ * deux écritures des totaux — l'erreur est silencieuse et coûte deux fois.
+ *
+ * D'où deux listes, et pas une : les habitudes se confirment en bloc, par
+ * couple de comptes ; ce qui a bougé entre-temps se regarde une par une.
+ */
+export function groupesDeTransferts(state) {
+  const byId = new Map(state.tx.map((t) => [t.id, t]));
+  const habitudes = new Map();
+  const aVerifier = [];
+
+  for (const pair of state.transfers) {
+    if (pair.status !== 'propose') continue;
+    const out = byId.get(pair.out);
+    const dedans = byId.get(pair.in);
+    if (!out || !dedans) continue;
+    const montantCents = Math.abs(out.cents);
+
+    if (pair.gap > 0) {
+      aVerifier.push({ id: pair.id, gap: pair.gap, montantCents, date: out.date, de: out.acc, vers: dedans.acc });
+      continue;
+    }
+
+    // Le sens compte : le compte courant qui alimente l'épargne n'est pas la
+    // même habitude que l'épargne qui renfloue le courant.
+    const cle = `${out.acc}>${dedans.acc}`;
+    const groupe = habitudes.get(cle) || {
+      cle, de: out.acc, vers: dedans.acc,
+      paires: [], montants: [], occurrences: 0, totalCents: 0,
+      premiere: out.date, derniere: out.date, mois: new Set(),
+    };
+    groupe.paires.push(pair.id);
+    groupe.montants.push(montantCents);
+    groupe.occurrences += 1;
+    groupe.totalCents += montantCents;
+    if (out.date < groupe.premiere) groupe.premiere = out.date;
+    if (out.date > groupe.derniere) groupe.derniere = out.date;
+    groupe.mois.add(out.date.slice(0, 7));
+    habitudes.set(cle, groupe);
+  }
+
+  return {
+    habitudes: [...habitudes.values()]
+      .map((g) => ({
+        ...g,
+        mois: g.mois.size,
+        montants: [...new Set(g.montants)].sort((a, b) => b - a),
+      }))
+      .sort((a, b) => b.totalCents - a.totalCents),
+    aVerifier: aVerifier.sort((a, b) => b.gap - a.gap || b.montantCents - a.montantCents),
+  };
+}
+
+/**
+ * Tranche d'un coup sur toutes les paires d'une habitude.
+ *
+ * Ne touche que les paires du jour même : les décalées ne sont jamais emportées
+ * par un geste de masse, puisque ce sont elles qui demandaient un regard.
+ */
+export function decideGroupe(state, cle, status) {
+  const groupe = groupesDeTransferts(state).habitudes.find((g) => g.cle === cle);
+  if (!groupe) return { kind: 'introuvable' };
+  for (const id of groupe.paires) decideTransfer(state, id, status);
+  return { kind: 'decide', paires: groupe.paires.length, status };
+}
+
 /* ------------------------------------------------------------- agrégats */
 
 /** Un transfert confirmé sort des totaux sans disparaître du journal. */

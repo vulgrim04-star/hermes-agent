@@ -414,6 +414,32 @@ calcule rien de neuf.
 Sur l'export réel, au premier import : 154 écritures sans catégorie, 53 transferts à confirmer,
 6 comptes sans solde, 352 catégories à préciser pour 35'398.67.
 
+## Transferts internes : deux listes, pas une
+
+Un virement d'un de vos comptes vers un autre apparaît deux fois dans le relevé : une sortie et une
+entrée. Tant qu'il n'est pas confirmé, **il gonfle les deux côtés** — mesuré sur un export réel,
+9'270.00 de revenus et 9'170.00 de dépenses fantômes sur six mois. En juin, les revenus affichés
+passaient de 10'317.90 à 6'217.90 une fois les paires confirmées : 40 % d'écart.
+
+La détection est stricte par construction — montant exactement opposé, comptes différents, cinq
+jours au plus, contrepartie la plus proche en date. Sur le même export, **48 des 53 paires tombent
+le jour même**, réparties sur quatre couples de comptes ; cinq arrivent avec deux à cinq jours
+d'écart.
+
+Ces deux populations ne se traitent pas pareil, et l'écran ne les mélange plus :
+
+- **Les habitudes.** Une sortie et une entrée du même montant exact, le même jour, entre deux
+  comptes du ménage : c'est la définition d'un virement interne, pas une question. Elles se
+  confirment par couple de comptes — quatre gestes au lieu de quarante-huit, avec le nombre, les
+  mois couverts, le total et les montants sous les yeux.
+- **Les décalées.** À quelques jours d'écart, un paiement et une recette du même montant peuvent
+  n'avoir aucun rapport. Une paire confirmée à tort **efface les deux écritures des totaux**, et
+  l'erreur est silencieuse : les soldes n'ayant pas bougé, le rapprochement bancaire reste juste et
+  ne la rattrape pas. Elles se regardent une par une, et **aucun geste de masse ne les emporte** —
+  c'est la propriété que le fichier de tests éprouve en premier.
+
+Neuf décisions au lieu de cinquante-trois, sans qu'aucune devienne plus aveugle.
+
 ## Affiner ce que la banque a classé en gros
 
 La banque ne classe qu'en racines : « Santé, sport et beauté » devient *Santé*, « Assurances »

@@ -6,7 +6,7 @@ import CategorySelect from '../components/CategorySelect.jsx';
 import { catOf } from '../lib/categories.js';
 import { frDate } from '../lib/dates.js';
 import { fmt } from '../lib/money.js';
-import { applyRules, decideTransfer, hasSplits, ruleScope, suggestPattern } from '../lib/ledger.js';
+import { applyRules, decideGroupe, decideTransfer, groupesDeTransferts, hasSplits, ruleScope, suggestPattern } from '../lib/ledger.js';
 import { accepterRegle, proposerRegle } from '../lib/apprentissage.js';
 import { edit, useBudget } from '../store/useBudget.js';
 
@@ -20,14 +20,13 @@ export default function Review() {
   const [ruleFor, setRuleFor] = useState(null);
   const [proposition, setProposition] = useState(null);
 
-  const pairs = data.transfers.filter((p) => p.status === 'propose');
+  const { habitudes, aVerifier } = groupesDeTransferts(data);
   // Une écriture répartie est classée : ses parts portent les catégories.
   const queue = data.tx.filter((t) => !t.cat && !t.transfer && !hasSplits(t));
-  const byId = new Map(data.tx.map((t) => [t.id, t]));
 
   return (
     <>
-      {pairs.length > 0 && (
+      {(habitudes.length > 0 || aVerifier.length > 0) && (
         <div className="block">
           <header>
             <div className="grow">
@@ -38,72 +37,51 @@ export default function Review() {
                 dépense de plus, la dépense a eu lieu à l’achat.
               </p>
             </div>
-            {/*
-              Confirmer cinquante-trois paires une par une décourage, et une
-              file qu'on n'épuise jamais finit par être ignorée — ce qui laisse
-              des doubles comptages dans les totaux.
-
-              Le geste reste **délibéré** : la liste est sous les yeux, le
-              nombre et le montant sont annoncés, et chaque paire peut être
-              rejetée avant. Ce qui est écarté, c'est la répétition, pas la
-              décision.
-            */}
-            {pairs.length > 1 && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => edit((s) => {
-                  for (const pair of s.transfers.filter((p) => p.status === 'propose')) {
-                    decideTransfer(s, pair.id, 'confirme');
-                  }
-                })}
-              >
-                Confirmer les {pairs.length} paires ({fmt(pairs.reduce((somme, pair) => {
-                  const out = byId.get(pair.out);
-                  return somme + (out ? Math.abs(out.cents) : 0);
-                }, 0))})
-              </button>
-            )}
           </header>
-          <div className="body flush">
-            <ul className="rows">
-              {pairs.map((pair) => {
-                const out = byId.get(pair.out);
-                const income = byId.get(pair.in);
-                if (!out || !income) return null;
-                return (
-                  <li key={pair.id} style={{ flexWrap: 'wrap' }}>
-                    <div className="lead">
-                      <b>{out.label}</b>
-                      <span>
-                        {frDate(out.date)} · {(data.accounts[out.acc] || {}).label || out.acc}
-                        {' → '}
-                        {(data.accounts[income.acc] || {}).label || income.acc}
-                        {pair.gap > 0 && ` · ${pair.gap} j d’écart`}
-                      </span>
-                    </div>
-                    <span className="amount">{fmt(out.cents)}</span>
-                    <div className="row" style={{ flex: '1 1 100%' }}>
-                      <button
-                        type="button"
-                        className="btn primary"
-                        onClick={() => edit((s) => decideTransfer(s, pair.id, 'confirme'))}
-                      >
-                        Confirmer
-                      </button>
-                      <button
-                        type="button"
-                        className="btn quiet"
-                        onClick={() => edit((s) => decideTransfer(s, pair.id, 'rejete'))}
-                      >
-                        Écarter
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+
+          {/*
+            Deux listes, et c'est tout l'objet de cet écran.
+
+            Une sortie et une entrée du **même montant exact, le même jour,
+            entre deux comptes du ménage** n'est pas une question : c'est la
+            définition d'un virement interne. Sur un relevé réel, quarante-huit
+            des cinquante-trois paires sont dans ce cas, réparties sur quatre
+            habitudes. Les confirmer une par une ne fait gagner aucune
+            certitude — ça fatigue, et une file qu'on n'épuise jamais laisse des
+            doubles comptages dans tous les totaux.
+
+            Les paires **décalées** sont d'une autre nature : à quelques jours
+            d'écart, un paiement et une recette du même montant peuvent n'avoir
+            aucun rapport. Confirmée à tort, la paire efface les deux écritures
+            des totaux — l'erreur est silencieuse, et les soldes restent justes,
+            donc le rapprochement ne la rattrape pas. Elles ne sont jamais
+            emportées par un geste de masse.
+          */}
+          {habitudes.length > 0 && (
+            <div className="body flush">
+              <ul className="rows">
+                {habitudes.map((h) => <Habitude key={h.cle} h={h} accounts={data.accounts} />)}
+              </ul>
+            </div>
+          )}
+
+          {aVerifier.length > 0 && (
+            <>
+              <div className="body" style={{ paddingBottom: 0 }}>
+                <h4>À regarder une par une</h4>
+                <p className="note" style={{ marginTop: 6 }}>
+                  {aVerifier.length} paire(s) ne tombent pas le même jour. C’est là qu’une
+                  coïncidence est possible, et une paire confirmée à tort efface deux écritures des
+                  totaux sans que rien ne le signale.
+                </p>
+              </div>
+              <div className="body flush">
+                <ul className="rows">
+                  {aVerifier.map((v) => <Decalee key={v.id} v={v} accounts={data.accounts} />)}
+                </ul>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -258,5 +236,71 @@ function RuleDialog({ tx, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Une habitude : un couple de comptes, des virements du jour même. */
+function Habitude({ h, accounts }) {
+  const nom = (k) => (accounts[k] || {}).label || k;
+  const montants = h.montants.slice(0, 3).map(fmt).join(', ');
+  return (
+    <li style={{ flexWrap: 'wrap' }}>
+      <div className="lead">
+        <b>{nom(h.de)} → {nom(h.vers)}</b>
+        <span>
+          {h.occurrences} virement(s) sur {h.mois} mois, toujours le jour même · {montants}
+          {h.montants.length > 3 && ` et ${h.montants.length - 3} autre(s)`}
+        </span>
+      </div>
+      <span className="amount">{fmt(h.totalCents)}</span>
+      <div className="row" style={{ flex: '1 1 100%' }}>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => edit((s) => decideGroupe(s, h.cle, 'confirme'))}
+        >
+          Confirmer les {h.occurrences}
+        </button>
+        <button
+          type="button"
+          className="btn quiet"
+          onClick={() => edit((s) => decideGroupe(s, h.cle, 'rejete'))}
+        >
+          Écarter
+        </button>
+      </div>
+    </li>
+  );
+}
+
+/** Une paire décalée : la seule qui demande un jugement. */
+function Decalee({ v, accounts }) {
+  const nom = (k) => (accounts[k] || {}).label || k;
+  return (
+    <li style={{ flexWrap: 'wrap' }}>
+      <span className="puce-gravite attention" aria-hidden="true" />
+      <div className="lead">
+        <b>{fmt(v.montantCents)}</b>
+        <span>
+          {nom(v.de)} → {nom(v.vers)} · {frDate(v.date)} · arrivé {v.gap} jour(s) plus tard
+        </span>
+      </div>
+      <div className="row" style={{ flex: '1 1 100%' }}>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => edit((s) => decideTransfer(s, v.id, 'confirme'))}
+        >
+          Confirmer
+        </button>
+        <button
+          type="button"
+          className="btn quiet"
+          onClick={() => edit((s) => decideTransfer(s, v.id, 'rejete'))}
+        >
+          Écarter
+        </button>
+      </div>
+    </li>
   );
 }
