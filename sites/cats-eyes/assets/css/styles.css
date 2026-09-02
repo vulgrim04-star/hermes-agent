@@ -14,6 +14,7 @@
   --taupe:      #A8907A;   /* accent secondaire          */
   --ink:        #2E2A26;   /* texte principal / fond sombre */
   --ink-soft:   #6B6157;   /* texte secondaire           */
+  --gold:       #E4C03F;   /* or du logo (échantillonné) */
   --white:      #FFFFFF;
 
   /* — Typographie — */
@@ -124,12 +125,12 @@ em{ font-style:italic; }
 }
 .header-inner{ display:flex; align-items:center; justify-content:space-between; gap:2rem; }
 
-.brand{ display:inline-flex; align-items:center; gap:.75rem; color:var(--cream); transition:color .45s var(--ease); }
+/* Le mot-symbole doré du logo tient lieu de nom : lisible aussi bien sur la
+   photo sombre de l'accueil que sur l'en-tête crème une fois collé. */
+.brand{ display:inline-flex; align-items:baseline; gap:.6rem; color:var(--cream); transition:color .45s var(--ease); }
 .site-header.is-stuck .brand{ color:var(--ink); }
-.brand-mark svg{ width:46px; height:auto; display:block; }
-.brand-text{ display:flex; flex-direction:column; line-height:1; }
-.brand-name{ font-family:var(--serif); font-size:1.45rem; letter-spacing:.03em; }
-.brand-sub{ font-size:.6rem; letter-spacing:.42em; text-transform:uppercase; opacity:.8; margin-top:.28rem; }
+.brand-logo{ width:152px; height:auto; display:block; flex:none; }
+.brand-sub{ font-size:.6rem; letter-spacing:.42em; text-transform:uppercase; opacity:.75; }
 
 .nav{ display:flex; align-items:center; gap:2.4rem; }
 .nav ul{ display:flex; gap:2rem; }
@@ -253,7 +254,7 @@ em{ font-style:italic; }
 /* ---------- Avis ---------- */
 .reviews{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(1.5rem,3vw,2.5rem); }
 .review{ margin:0; background:var(--cream); padding:clamp(1.8rem,3vw,2.4rem); display:flex; flex-direction:column; }
-.stars{ color:var(--nude); letter-spacing:.28em; font-size:.85rem; margin-bottom:1.2rem; }
+.stars{ color:var(--gold); letter-spacing:.28em; font-size:.85rem; margin-bottom:1.2rem; }
 .review p{ font-family:var(--serif); font-size:1.18rem; line-height:1.55; font-style:italic; color:var(--ink); flex:1; }
 .review cite{ font-style:normal; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--taupe); }
 
@@ -267,6 +268,7 @@ em{ font-style:italic; }
 
 /* ---------- CTA ---------- */
 .cta{ background:var(--sand); }
+.cta-logo{ width:132px; height:auto; margin:0 auto 1.8rem; }
 .cta-title{ margin-bottom:1.6rem; }
 .cta-lead{ max-width:34rem; margin-inline:auto; color:var(--ink-soft); margin-bottom:2.6rem; }
 .cta-actions{ display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; }
@@ -274,8 +276,7 @@ em{ font-style:italic; }
 /* ---------- Pied de page ---------- */
 .site-footer{ background:var(--ink); color:var(--sand); padding-top:clamp(3.5rem,7vw,5.5rem); }
 .footer-inner{ display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:2.5rem; padding-bottom:3rem; }
-.footer-brand .brand-name{ font-size:1.6rem; display:block; }
-.footer-brand .brand-sub{ display:block; margin-bottom:1.2rem; }
+.footer-logo{ width:200px; height:auto; margin-bottom:1.4rem; }
 .footer-brand p{ color:var(--sand-deep); font-size:.88rem; max-width:22rem; }
 .footer-nav{ display:grid; gap:.7rem; align-content:start; }
 .footer-nav a{ font-size:.8rem; letter-spacing:.1em; color:var(--sand-deep); transition:color .35s var(--ease); }
@@ -330,6 +331,9 @@ em{ font-style:italic; }
   .burger.is-open span:nth-child(1){ transform:translateY(6.5px) rotate(45deg); }
   .burger.is-open span:nth-child(2){ opacity:0; }
   .burger.is-open span:nth-child(3){ transform:translateY(-6.5px) rotate(-45deg); }
+
+  .brand-logo{ width:118px; }
+  .footer-logo{ width:168px; }
 
   .grid-2{ grid-template-columns:1fr; }
   .grid-2--reverse .media{ order:0; }

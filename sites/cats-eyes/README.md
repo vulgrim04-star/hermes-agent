@@ -41,10 +41,31 @@ pour qu'ils remplacent automatiquement les dégradés (aucun code à modifier).
 | `presta-sourcils.jpg` | carte « Sourcils » | paysage 4:3 |
 | `galerie-1.jpg` … `galerie-7.jpg` | galerie (7 vignettes) | carré 1:1, sauf `galerie-2` et `galerie-5` en portrait 1:2 |
 | `plan.jpg` | visuel de la carte / devanture | paysage 4:3 |
-| `og-cover.jpg` | aperçu lors d'un partage | 1200 × 630 px |
 
 > Compressez les photos (TinyPNG, Squoosh…) avant de les déposer : viser
 > moins de 300 Ko par image pour garder un site rapide.
+
+## Le logo
+
+Les fichiers du logo sont déjà dans `assets/img/` — inutile de les fournir.
+Ils sont dérivés de l'icône fournie par le salon (or sur carré crème), dont
+le fond a été retiré par incrustation sur la saturation : le crème et les
+ombres grises ont une saturation quasi nulle, l'or non. Les bords ont ensuite
+été décontaminés (retrait de la couleur de fond dans les pixels
+d'anticrénelage) pour qu'aucun halo clair n'apparaisse sur fond sombre.
+
+| Fichier | Usage |
+|---|---|
+| `logo-cats-eyes.png` | verrouillage complet (yeux + nom) — pied de page |
+| `logo-wordmark.png` | nom seul — en-tête, où les yeux seraient illisibles |
+| `logo-mark.png` | yeux seuls — bloc « prendre rendez-vous » |
+| `favicon-32/180/512.png` | onglet du navigateur, icône d'écran d'accueil |
+| `og-cover.jpg` | aperçu lors d'un partage (généré, 1200 × 630) |
+
+Tous sont sur fond transparent (sauf le favicon et l'aperçu de partage, sur
+crème) et fonctionnent donc aussi bien sur le crème que sur le fond sombre.
+L'or du logo est repris dans le CSS par la variable `--gold: #E4C03F`,
+échantillonnée sur le fichier d'origine.
 
 ## Personnaliser la direction artistique
 
